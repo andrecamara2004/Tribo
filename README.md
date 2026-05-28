@@ -36,3 +36,4 @@ See [`/docs/WORKING-AGREEMENTS.md`](docs/WORKING-AGREEMENTS.md) for branching, c
 
 André Câmara · Rafael Rodrigues · João Duarte · Martinho Pereira · Ricardo Pinéu
 
+
