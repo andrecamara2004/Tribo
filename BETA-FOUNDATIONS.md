@@ -19,16 +19,15 @@ Do these roughly in order. Each item names a likely owner, but since the team is
 - [x] Decide and write down the **branching strategy**. Recommended for a 5-person team: `main` (protected, always deployable) + short-lived feature branches → pull request → review → merge. Avoid long-lived personal branches.
 - [x] Turn on **branch protection** on `main`: require at least 1 PR review, require the build to pass before merge.
 - [x] Agree a **commit message convention** (Conventional Commits — `feat:`, `fix:`, `chore:` — is low-effort and keeps history readable).
-- [ ] Set up **GitHub Projects** board with columns: Backlog / Sprint / In Progress / In Review / Done.
 - [ ] Add a `.gitignore` per subproject (Java/Maven, Flutter, Node) and a root `README.md` that links to this doc.
 - [ ] **Never commit secrets.** Add a `.env.example` with empty keys; real `.env` files stay local / in CI secrets.
 
 ## 2. Google Cloud project
  
-- [ ] Create a **single GCP project** (e.g. `tribo-beta`). One person owns billing; add the other four as members.
-- [ ] Enable the APIs you'll need: App Engine Admin, Firestore (Datastore), Cloud Storage, and (later) Firebase Cloud Messaging.
-- [ ] Set up **IAM roles** for the team — give each member the access they need, not Owner-for-everyone.
-- [ ] **Watch the free tier / budget.** Set a billing alert (e.g. €20) so a misconfiguration doesn't surprise you. Firestore has a generous always-free daily quota that a dev project rarely exceeds.
+- [x] Create a **single GCP project** (e.g. `tribo-beta`). One person owns billing; add the other four as members.
+- [x] Enable the APIs you'll need: App Engine Admin, Firestore (Datastore), Cloud Storage, and (later) Firebase Cloud Messaging.
+- [x] Set up **IAM roles** for the team — give each member the access they need, not Owner-for-everyone.
+- [x] **Watch the free tier / budget.** Set a billing alert (e.g. €20) so a misconfiguration doesn't surprise you. Firestore has a generous always-free daily quota that a dev project rarely exceeds.
 ## 3. Firestore (Datastore mode)
  
 - [ ] In the GCP console, create a **Firestore database** and choose **Datastore mode** (not Native mode). This is a one-time, permanent choice per project — pick Datastore mode because the database is accessed server-side through the Java API on App Engine.
