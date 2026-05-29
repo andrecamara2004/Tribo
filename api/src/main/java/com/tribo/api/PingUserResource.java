@@ -3,6 +3,8 @@ package com.tribo.api;
 import com.tribo.api.iam.Role;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
+import com.tribo.api.iam.PasswordHasher;
+
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -45,7 +47,7 @@ public class PingUserResource {
             User toSave = new User(
                     id,
                     email,
-                    "$2a$12$placeholder-not-a-real-hash-yet",
+                    PasswordHasher.hash("test-password-12345"),
                     "Probe User",
                     "+351912345678",
                     25,
@@ -61,7 +63,7 @@ public class PingUserResource {
             Optional<User> byEmail = REPO.findByEmail(email.toUpperCase()); // exercises case-insensitivity
             boolean exists = REPO.existsByEmail(email);
 
-            if (byId.isEmpty() || byEmail.isEmpty() || !exists) {
+if (byId.isEmpty() || byEmail.isEmpty() || !exists) {
                 return Response.serverError()
                         .entity(Map.of(
                                 "ok", false,
@@ -72,12 +74,20 @@ public class PingUserResource {
                         .build();
             }
 
+            // B-2: exercise the password hasher
+            String storedHash = byId.get().passwordHash();
+            boolean verifyRight = PasswordHasher.verify("test-password-12345", storedHash);
+            boolean verifyWrong = PasswordHasher.verify("WRONG-password", storedHash);
+
             return Response.ok(Map.of(
                     "ok", true,
                     "id", byId.get().id(),
                     "email", byEmail.get().email(),
                     "role", byEmail.get().role().name(),
-                    "existsByEmail", exists
+                    "existsByEmail", exists,
+                    "hashStartsWithBcryptPrefix", storedHash.startsWith("$2a$12$"),
+                    "verifyRightPassword", verifyRight,
+                    "verifyWrongPassword", verifyWrong
             )).build();
 
         } catch (Exception e) {
