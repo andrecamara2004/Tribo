@@ -1,0 +1,19 @@
+﻿# Build outputs (never commit)
+target/
+build/
+dist/
+node_modules/
+
+# Local config / secrets
+.env
+.env.local
+*-service-account.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
