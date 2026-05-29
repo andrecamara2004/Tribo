@@ -30,8 +30,8 @@ Do these roughly in order. Each item names a likely owner, but since the team is
 - [x] **Watch the free tier / budget.** Set a billing alert (e.g. €20) so a misconfiguration doesn't surprise you. Firestore has a generous always-free daily quota that a dev project rarely exceeds.
 ## 3. Firestore (Datastore mode)
  
-- [ ] In the GCP console, create a **Firestore database** and choose **Datastore mode** (not Native mode). This is a one-time, permanent choice per project — pick Datastore mode because the database is accessed server-side through the Java API on App Engine.
-- [ ] Pick a region close to your users (e.g. `europe-west1`) at creation — also permanent.
+- [x] In the GCP console, create a **Firestore database** and choose **Datastore mode** (not Native mode). This is a one-time, permanent choice per project — pick Datastore mode because the database is accessed server-side through the Java API on App Engine.
+- [x] Pick a region close to your users (e.g. `europe-west1`) at creation — also permanent.
 - [ ] No instance to size, no DB user, no password — **App Engine's default service account already has read/write access** to Firestore in the same project, so the API authenticates automatically.
 - [ ] Add the Datastore client library to the API (`com.google.cloud:google-cloud-datastore` in `pom.xml`).
 - [ ] Plan your data model the **NoSQL way**: no joins. Store related data together (denormalize), and for queries that filter/sort on multiple fields you'll define **composite indexes** in an `index.yaml` file (the local emulator can generate these for you).
