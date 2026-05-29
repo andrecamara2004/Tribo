@@ -39,21 +39,20 @@ Do these roughly in order. Each item names a likely owner, but since the team is
 - [ ] For **local development**, use the **Datastore emulator** (`gcloud beta emulators datastore start`) so you're not hitting the real database during dev.
 ## 4. Java API skeleton on App Engine
  
-- [ ] Scaffold a **Spring Boot** project (standard, well-documented path with App Engine + Cloud SQL).
-- [ ] Add a single health endpoint: `GET /api/health` returning `{"status":"ok"}`. This is your vertical-slice target.
-- [ ] Wire up Firestore (Datastore mode) via the `google-cloud-datastore` client library — the App Engine service account provides access, so no credentials in code.
-- [ ] Add the `app.yaml` for App Engine Standard (Java runtime).
-- [ ] **Deploy once now**, manually, to confirm the whole chain works: code → App Engine → reaches Firestore. Don't wait for CI.
+- [x] Scaffold a **Jersey** project (standard, well-documented path with App Engine + Cloud SQL).
+- [x] Add a single health endpoint: `GET /api/health` returning `{"status":"ok"}`. This is your vertical-slice target.
+- [x] Wire up Firestore (Datastore mode) via the `google-cloud-datastore` client library — the App Engine service account provides access, so no credentials in code.
+- [x] **Deploy once now**, manually, to confirm the whole chain works: code → App Engine → reaches Firestore. Don't wait for CI.
 ## 5. API contract (lock before mobile & web diverge)
  
-- [ ] Agree the **base URL structure and versioning** (`/api/v1/...`).
-- [ ] Sketch an **OpenAPI / Swagger** document for the IAM endpoints you'll build in Sprint 1 (register, login, logout, refresh). This is the shared truth both clients code against.
-- [ ] Decide and document the **JWT design** up front (it touches every later operation): what claims the token carries (user id, role), access vs. refresh token lifetimes, and how RBAC roles map to claims. The brief is explicit that token design matters — settle it here, not mid-sprint.
-- [ ] Agree a **standard error response shape** (e.g. `{ "error": { "code": ..., "message": ... } }`) so both clients handle failures consistently.
+- [x] Agree the **base URL structure and versioning** (`/api/v1/...`).
+- [x] Sketch an **OpenAPI / Swagger** document for the IAM endpoints you'll build in Sprint 1 (register, login, logout, refresh). This is the shared truth both clients code against.
+- [x] Decide and document the **JWT design** up front (it touches every later operation): what claims the token carries (user id, role), access vs. refresh token lifetimes, and how RBAC roles map to claims. The brief is explicit that token design matters — settle it here, not mid-sprint.
+- [x] Agree a **standard error response shape** (e.g. `{ "error": { "code": ..., "message": ... } }`) so both clients handle failures consistently.
 ## 6. Client scaffolding
  
-- [ ] Scaffold the **Flutter** project; add an HTTP client and call `/api/health`. Confirm a green "ok" on a device/emulator.
-- [ ] Scaffold the **React** project (pick the build tool now — Vite is the simple modern default); call `/api/health`. Confirm "ok" in the browser.
+- [] Scaffold the **Flutter** project; add an HTTP client and call `/api/health`. Confirm a green "ok" on a device/emulator.
+- [] Scaffold the **React** project (pick the build tool now — Vite is the simple modern default); call `/api/health`. Confirm "ok" in the browser.
 - [ ] Put the **API base URL in config**, not hardcoded — both clients will point at localhost during dev and App Engine later.
 ## 7. CI (lightweight — don't over-build it)
  
