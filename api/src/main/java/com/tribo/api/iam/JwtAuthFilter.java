@@ -8,7 +8,6 @@ import jakarta.annotation.Priority;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.container.PreMatching;
 import jakarta.ws.rs.ext.Provider;
 
 import java.io.IOException;
@@ -21,7 +20,8 @@ import java.io.IOException;
  *   - Otherwise, require Authorization: Bearer <token>.
  *   - Verify the token (signature, expiry, issuer) via JwtIssuer.
  *   - Reject refresh tokens (typ=refresh) — only access tokens are valid here.
- *   - On success, attach a JwtSecurityContext exposing the user id and role.
+ *   - On success, attach a JwtSecurityContext AND stash the AuthenticatedUser
+ *     as the request property "tribo.user" for cast-free retrieval.
  *   - On failure, throw UnauthorizedException — ApiExceptionMapper turns it
  *     into a 401 with the standard error envelope.
  *
@@ -33,6 +33,8 @@ import java.io.IOException;
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class JwtAuthFilter implements ContainerRequestFilter {
+
+    public static final String USER_PROPERTY = "tribo.user";
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final JwtIssuer JWT = new JwtIssuer();
@@ -79,8 +81,15 @@ public class JwtAuthFilter implements ContainerRequestFilter {
             throw new UnauthorizedException("Token has unknown role.");
         }
 
+        AuthenticatedUser authUser = new AuthenticatedUser(userId, role);
+
+        // Stash for cast-free retrieval in resource methods.
+        ctx.setProperty(USER_PROPERTY, authUser);
+
+        // Also attach a JwtSecurityContext so SecurityContext-based code and
+        // the RBAC role filter keep working.
         ctx.setSecurityContext(new JwtSecurityContext(
-                new AuthenticatedUser(userId, role),
+                authUser,
                 ctx.getSecurityContext().isSecure()));
     }
 

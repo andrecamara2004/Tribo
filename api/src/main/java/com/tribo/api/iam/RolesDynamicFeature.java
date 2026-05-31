@@ -3,12 +3,13 @@ package com.tribo.api.iam;
 import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.UnauthorizedException;
 
+import jakarta.annotation.Priority;
+import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.container.DynamicFeature;
 import jakarta.ws.rs.container.ResourceInfo;
 import jakarta.ws.rs.core.FeatureContext;
-import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.ext.Provider;
 
 import java.io.IOException;
@@ -21,9 +22,11 @@ import java.util.stream.Collectors;
  * @AllowedRoles, registers a per-method request filter that enforces the
  * role check after authentication.
  *
- * Runs after JwtAuthFilter (which has higher priority via AUTHENTICATION),
- * so by the time the role filter runs, the SecurityContext is already
- * populated with the authenticated user.
+ * The role filter reads the AuthenticatedUser from the "tribo.user" request
+ * property set by JwtAuthFilter, rather than casting the SecurityContext.
+ * It is registered with @Priority(AUTHORIZATION) so it provably runs after
+ * JwtAuthFilter (AUTHENTICATION = 1000 < AUTHORIZATION = 2000); by the time
+ * it runs, the property is populated.
  */
 @Provider
 public class RolesDynamicFeature implements DynamicFeature {
@@ -40,15 +43,15 @@ public class RolesDynamicFeature implements DynamicFeature {
         context.register(new RoleCheckFilter(allowed));
     }
 
+    @Priority(Priorities.AUTHORIZATION)
     private record RoleCheckFilter(Set<Role> allowed) implements ContainerRequestFilter {
         @Override
         public void filter(ContainerRequestContext ctx) throws IOException {
-            SecurityContext sec = ctx.getSecurityContext();
-            if (!(sec instanceof JwtSecurityContext jwtCtx)) {
+            Object u = ctx.getProperty(JwtAuthFilter.USER_PROPERTY);
+            if (!(u instanceof AuthenticatedUser user)) {
                 throw new UnauthorizedException("Authentication required.");
             }
-            Role userRole = jwtCtx.user().role();
-            if (!allowed.contains(userRole)) {
+            if (!allowed.contains(user.role())) {
                 throw new ForbiddenException("Your role is not permitted to perform this action.");
             }
         }
