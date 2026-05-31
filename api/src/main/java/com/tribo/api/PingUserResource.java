@@ -6,6 +6,10 @@ import com.tribo.api.iam.UserRepository;
 import com.tribo.api.iam.PasswordHasher;
 import com.tribo.api.iam.JwtIssuer;
 
+import com.tribo.api.error.ValidationException;
+import com.tribo.api.error.ConflictException;
+import com.tribo.api.error.UnauthorizedException;
+
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 import jakarta.ws.rs.GET;
@@ -13,6 +17,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.QueryParam;
 
 import java.time.Instant;
 import java.util.Map;
@@ -42,8 +47,23 @@ public class PingUserResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response ping() {
+    public Response ping(@QueryParam("throw") String throwWhich) {
         try {
+            // B-4: exercise the exception mapper
+            if ("validation".equals(throwWhich)) {
+                throw new ValidationException(
+                        "Test validation error",
+                        Map.of("email", "invalid format"));
+            }
+            if ("conflict".equals(throwWhich)) {
+                throw new ConflictException("Email already registered.");
+            }
+            if ("unauthorized".equals(throwWhich)) {
+                throw new UnauthorizedException("Token expired.");
+            }
+            if ("unchecked".equals(throwWhich)) {
+                throw new RuntimeException("oops — should become INTERNAL_ERROR");
+            }
             String id = UUID.randomUUID().toString();
             String email = "probe-" + id + "@tribo.test";
 
@@ -103,6 +123,9 @@ public class PingUserResource {
                     "refreshTypIsRefresh", refreshIsRefreshTyp,
                     "accessSubjectMatchesUserId", accessSubjectMatches)).build();
 
+        } catch (com.tribo.api.error.ApiException e) {
+            // Let the ApiExceptionMapper format this — re-throw, don't swallow.
+            throw e;
         } catch (Exception e) {
             return Response.serverError()
                     .entity(Map.of(
