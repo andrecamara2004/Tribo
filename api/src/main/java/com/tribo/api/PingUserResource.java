@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.tribo.api.iam.PublicEndpoint;
+
 /**
  * TEMPORARY foundations probe for ticket B-1.
  *
@@ -40,6 +42,7 @@ import java.util.UUID;
  * permanent attack surface.
  */
 @Path("/ping-user")
+@PublicEndpoint
 public class PingUserResource {
 
     private static final UserRepository REPO = new UserRepository();
@@ -134,5 +137,20 @@ public class PingUserResource {
                             "message", e.getMessage() == null ? "" : e.getMessage()))
                     .build();
         }
+    }
+
+    @GET
+    @Path("/mint-token")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response mintToken(@QueryParam("role") String roleParam) {
+        Role role = (roleParam == null || roleParam.isBlank())
+                ? Role.END_USER
+                : Role.valueOf(roleParam);
+        String userId = java.util.UUID.randomUUID().toString();
+        String token = JWT.issueAccessToken(userId, role);
+        return Response.ok(Map.of(
+                "userId", userId,
+                "role", role.name(),
+                "accessToken", token)).build();
     }
 }

@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import com.tribo.api.iam.PublicEndpoint;
+
 /**
  * Database connectivity probe.
  *
@@ -30,6 +32,7 @@ import java.util.UUID;
  * NOTE: This is a foundation probe. Remove before BETA evaluation.
  */
 @Path("/ping-db")
+@PublicEndpoint
 public class PingDbResource {
 
     // DatastoreOptions.getDefaultInstance() uses Application Default Credentials:

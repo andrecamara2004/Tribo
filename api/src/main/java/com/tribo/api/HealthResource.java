@@ -7,6 +7,8 @@ import jakarta.ws.rs.core.MediaType;
 
 import java.util.Map;
 
+import com.tribo.api.iam.PublicEndpoint;
+
 /**
  * Health check endpoint.
  *
@@ -15,6 +17,7 @@ import java.util.Map;
  * Confirms the API is deployed and Jersey + JSON serialization work.
  */
 @Path("/health")
+@PublicEndpoint
 public class HealthResource {
 
     @GET
