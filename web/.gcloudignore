@@ -1,0 +1,16 @@
+# Upload ONLY the built static site + App Engine config.
+src/
+public/
+node_modules/
+package.json
+package-lock.json
+tsconfig*.json
+vite.config.*
+eslint.config.*
+README.md
+
+.env
+.env.*
+.vscode/
+.git/
+.gitignore
