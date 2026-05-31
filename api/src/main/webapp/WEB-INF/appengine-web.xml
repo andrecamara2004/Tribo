@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+
     <runtime>java21</runtime>
     <threadsafe>true</threadsafe>
+
+    <system-properties>
+        <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
+    </system-properties>
+
+    <env-variables>
+        <env-var name="JWT_SECRET" value="Q0bnXJgDOThL2kAHGdkM3QCxOiFwMDgQ7PaDeTI1kLooHsJ3nrwC1l17iYxx2iAl"/>
+        <env-var name="JWT_ISSUER" value="tribo-api"/>
+    </env-variables>
+
 </appengine-web-app>

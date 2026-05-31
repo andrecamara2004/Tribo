@@ -4,7 +4,9 @@ import com.tribo.api.iam.Role;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.iam.PasswordHasher;
+import com.tribo.api.iam.JwtIssuer;
 
+import com.auth0.jwt.interfaces.DecodedJWT;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -36,6 +38,7 @@ import java.util.UUID;
 public class PingUserResource {
 
     private static final UserRepository REPO = new UserRepository();
+    private static final JwtIssuer JWT = new JwtIssuer();
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -54,8 +57,7 @@ public class PingUserResource {
                     Role.END_USER,
                     User.ProfileVisibility.PUBLIC,
                     Instant.now(),
-                    false
-            );
+                    false);
 
             REPO.save(toSave);
 
@@ -63,40 +65,50 @@ public class PingUserResource {
             Optional<User> byEmail = REPO.findByEmail(email.toUpperCase()); // exercises case-insensitivity
             boolean exists = REPO.existsByEmail(email);
 
-if (byId.isEmpty() || byEmail.isEmpty() || !exists) {
+            if (byId.isEmpty() || byEmail.isEmpty() || !exists) {
                 return Response.serverError()
                         .entity(Map.of(
                                 "ok", false,
                                 "byId", byId.isPresent(),
                                 "byEmail", byEmail.isPresent(),
-                                "existsByEmail", exists
-                        ))
+                                "existsByEmail", exists))
                         .build();
             }
 
-            // B-2: exercise the password hasher
+            // B-2: password hasher round-trip
             String storedHash = byId.get().passwordHash();
             boolean verifyRight = PasswordHasher.verify("test-password-12345", storedHash);
             boolean verifyWrong = PasswordHasher.verify("WRONG-password", storedHash);
+
+            // B-3: JWT issuer round-trip
+            String accessToken = JWT.issueAccessToken(byId.get().id(), byId.get().role());
+            String refreshToken = JWT.issueRefreshToken(byId.get().id());
+
+            DecodedJWT decodedAccess = JWT.verify(accessToken);
+            DecodedJWT decodedRefresh = JWT.verify(refreshToken);
+
+            boolean accessHasRole = "END_USER".equals(decodedAccess.getClaim("role").asString());
+            boolean refreshIsRefreshTyp = "refresh".equals(decodedRefresh.getClaim("typ").asString());
+            boolean accessSubjectMatches = byId.get().id().equals(decodedAccess.getSubject());
 
             return Response.ok(Map.of(
                     "ok", true,
                     "id", byId.get().id(),
                     "email", byEmail.get().email(),
-                    "role", byEmail.get().role().name(),
                     "existsByEmail", exists,
                     "hashStartsWithBcryptPrefix", storedHash.startsWith("$2a$12$"),
                     "verifyRightPassword", verifyRight,
-                    "verifyWrongPassword", verifyWrong
-            )).build();
+                    "verifyWrongPassword", verifyWrong,
+                    "accessHasRoleClaim", accessHasRole,
+                    "refreshTypIsRefresh", refreshIsRefreshTyp,
+                    "accessSubjectMatchesUserId", accessSubjectMatches)).build();
 
         } catch (Exception e) {
             return Response.serverError()
                     .entity(Map.of(
                             "error", "user repo round-trip failed",
                             "type", e.getClass().getSimpleName(),
-                            "message", e.getMessage() == null ? "" : e.getMessage()
-                    ))
+                            "message", e.getMessage() == null ? "" : e.getMessage()))
                     .build();
         }
     }

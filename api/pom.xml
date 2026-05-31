@@ -25,6 +25,19 @@
 
   <dependencyManagement>
     <dependencies>
+
+      <!-- Force Jackson 2.18.x. Must come BEFORE libraries-bom so it wins
+           the version-resolution race. Required because com.auth0:java-jwt
+           calls BufferRecycler.releaseToPool(), which only exists in
+           Jackson 2.16+. libraries-bom 26.9.0 ships an older Jackson. -->
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>2.18.1</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
@@ -89,7 +102,7 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- JWT support (will be used in Sprint 1 for IAM) -->
+    <!-- JWT support (used in Sprint 1 for IAM) -->
     <dependency>
       <groupId>com.auth0</groupId>
       <artifactId>java-jwt</artifactId>
@@ -107,27 +120,28 @@
       <artifactId>google-cloud-storage</artifactId>
     </dependency>
 
+    <!-- bcrypt password hashing (B-2) -->
     <dependency>
       <groupId>org.mindrot</groupId>
       <artifactId>jbcrypt</artifactId>
       <version>0.4</version>
     </dependency>
+
   </dependencies>
 
   <build>
-    <!-- Layout that the App Engine plugin expects -->
     <outputDirectory>${project.build.directory}/${project.build.finalName}/WEB-INF/classes</outputDirectory>
 
     <plugins>
       <plugin>
-          <groupId>com.google.cloud.tools</groupId>
-          <artifactId>appengine-maven-plugin</artifactId>
-          <version>${appengine.maven.plugin.version}</version>
-          <configuration>
-              <cloudSdkVersion>568.0.0</cloudSdkVersion>
-              <projectId>tribo-497810</projectId>
-              <version>1</version>
-          </configuration>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>appengine-maven-plugin</artifactId>
+        <version>${appengine.maven.plugin.version}</version>
+        <configuration>
+          <cloudSdkVersion>568.0.0</cloudSdkVersion>
+          <projectId>tribo-497810</projectId>
+          <version>1</version>
+        </configuration>
       </plugin>
 
       <plugin>
