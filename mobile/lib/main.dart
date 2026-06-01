@@ -1,85 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
-const String apiBaseUrl = 'https://tribo-497810.ew.r.appspot.com';
+import 'api/auth.dart';
+import 'api/http.dart';
+import 'api/token_store.dart';
+import 'auth/auth_controller.dart';
+import 'auth/auth_scope.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
 
 void main() {
-  runApp(const TriboApp());
+  // Wire the dependency chain once: TokenStore → ApiClient → AuthApi → controller.
+  final tokens = TokenStore();
+  final client = ApiClient(tokens);
+  final authApi = AuthApi(client, tokens);
+  final controller = AuthController(authApi: authApi, tokens: tokens);
+
+  // Kick off the session bootstrap; the AuthGate shows a spinner until it lands.
+  controller.bootstrap();
+
+  runApp(TriboApp(controller: controller));
 }
 
 class TriboApp extends StatelessWidget {
-  const TriboApp({super.key});
+  const TriboApp({super.key, required this.controller});
+
+  final AuthController controller;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tribo',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
-      home: const HealthCheckScreen(),
-    );
-  }
-}
-
-class HealthCheckScreen extends StatefulWidget {
-  const HealthCheckScreen({super.key});
-
-  @override
-  State<HealthCheckScreen> createState() => _HealthCheckScreenState();
-}
-
-class _HealthCheckScreenState extends State<HealthCheckScreen> {
-  String? _status;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchHealth();
-  }
-
-  Future<void> _fetchHealth() async {
-    try {
-      final res = await http.get(Uri.parse('$apiBaseUrl/rest/health'));
-      if (res.statusCode != 200) {
-        throw Exception('HTTP ${res.statusCode}');
-      }
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      setState(() {
-        _status = body['status'] as String?;
-        _error = null;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _status = null;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tribo Mobile')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('API base: $apiBaseUrl', style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 24),
-            if (_error != null)
-              Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-            if (_status != null)
-              Text('API status: $_status',
-                  style: const TextStyle(color: Colors.green, fontSize: 18)),
-            if (_status == null && _error == null)
-              const Text('Loading…'),
-            const Spacer(),
-            ElevatedButton(onPressed: _fetchHealth, child: const Text('Re-check')),
-          ],
-        ),
+    return AuthScope(
+      controller: controller,
+      child: MaterialApp(
+        title: 'Tribo',
+        theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
+        home: const AuthGate(),
       ),
     );
+  }
+}
+
+/// Routes between the login flow and the home screen based on auth state.
+/// Rebuilds whenever the AuthController notifies (login / logout / bootstrap).
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+
+    if (auth.loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return auth.isAuthenticated ? const HomeScreen() : const LoginScreen();
   }
 }
