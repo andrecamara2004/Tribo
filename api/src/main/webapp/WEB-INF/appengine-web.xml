@@ -21,6 +21,10 @@
     <env-variables>
         <env-var name="JWT_SECRET" value="zXKxta3t/5mbE4omDvXFQ6okdc509wevwWYDu0ULmEILJ7fhapmthJGUsd02eB+T"/>
         <env-var name="JWT_ISSUER" value="tribo-api"/>
+        <!-- BOOTSTRAP_ADMIN_EMAIL is intentionally unset. Set it temporarily
+             (to an email you control, with a strong password) only when you need
+             to seed the first SYSADMIN, then unset and redeploy. See
+             docs/sprint-2-backlog.md D-1. -->
     </env-variables>
 
 </appengine-web-app>
