@@ -8,7 +8,7 @@ export function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    email: "", password: "", fullName: "", phoneNumber: "", age: "",
+    email: "", password: "", fullName: "", phoneNumber: "", age: "", role: "END_USER",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,8 +35,9 @@ export function RegisterPage() {
         fullName: form.fullName,
         phoneNumber: form.phoneNumber,
         age: ageNum,
+        role: form.role,
       });
-      navigate("/home", { replace: true });
+      navigate("/activities", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed.");
     } finally {
@@ -60,6 +61,17 @@ export function RegisterPage() {
           onChange={(e) => update("phoneNumber", e.target.value)} required style={field} />
         <input type="number" placeholder="Age" value={form.age}
           onChange={(e) => update("age", e.target.value)} required style={field} />
+        <label style={{ fontSize: 13, color: "#555" }}>Account type</label>
+        <select value={form.role} onChange={(e) => update("role", e.target.value)} style={field}>
+          <option value="END_USER">Participant (browse &amp; join)</option>
+          <option value="ACTIVITY_MANAGER">Activity manager (create activities)</option>
+          <option value="PARTNER">Partner (organisation)</option>
+        </select>
+        {form.role !== "END_USER" && (
+          <p style={{ fontSize: 13, color: "#8a6d00" }}>
+            Manager/partner accounts need backoffice verification before they can create activities.
+          </p>
+        )}
         {error && <p style={{ color: "crimson" }}>{error}</p>}
         <button type="submit" disabled={busy} style={{ width: "100%", padding: 10 }}>
           {busy ? "Creating…" : "Create account"}

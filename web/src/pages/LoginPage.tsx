@@ -18,7 +18,7 @@ export function LoginPage() {
     setBusy(true);
     try {
       await login(email, password);
-      navigate("/home", { replace: true });
+      navigate("/activities", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed.");
     } finally {

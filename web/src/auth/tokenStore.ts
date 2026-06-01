@@ -31,6 +31,7 @@ export interface LoginTokens {
   expiresIn: number; // seconds until the access token expires
   userId: string;
   role: string;
+  verified: boolean; // whether the account is cleared to act in its role (D-1)
 }
 
 // --- access token (memory) -------------------------------------------------

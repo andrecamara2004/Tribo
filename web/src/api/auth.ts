@@ -8,11 +8,13 @@ export interface RegisterInput {
   fullName: string;
   phoneNumber: string;
   age: number;
+  role?: string; // optional self-selected role (D-1); omit → END_USER
 }
 
 export interface CurrentUser {
   userId: string;
   role: string;
+  verified?: boolean; // known after login/register; undefined after a whoami bootstrap
 }
 
 /** POST /auth/login — stores the session and returns the user identity. */
@@ -24,7 +26,7 @@ export async function login(email: string, password: string): Promise<CurrentUse
   });
   if (!tokens) throw new Error("Login returned no body.");
   setSession(tokens);
-  return { userId: tokens.userId, role: tokens.role };
+  return { userId: tokens.userId, role: tokens.role, verified: tokens.verified };
 }
 
 /** POST /auth/register, then auto-login with the same credentials. */
