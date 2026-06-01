@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthScope.of(context).login(_email.text.trim(), _password.text);
-      // On success the AuthGate swaps to HomeScreen automatically.
+      // On success the AuthGate swaps to ActivitiesScreen automatically.
     } on ApiError catch (e) {
       setState(() => _error = e.message);
     } catch (_) {

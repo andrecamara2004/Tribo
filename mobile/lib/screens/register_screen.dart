@@ -19,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullName = TextEditingController();
   final _phone = TextEditingController();
   final _age = TextEditingController();
+  String _role = 'END_USER';
   String? _error;
   bool _busy = false;
 
@@ -54,9 +55,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fullName: _fullName.text.trim(),
         phoneNumber: _phone.text.trim(),
         age: age,
+        role: _role,
       ));
-      // On success the AuthGate swaps to HomeScreen; pop this route so a back
-      // press doesn't return to the now-stale register form.
+      // On success the AuthGate swaps to ActivitiesScreen; pop this route so a
+      // back press doesn't return to the now-stale register form.
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() => _error = e.message);
@@ -124,6 +126,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _role,
+                  decoration: const InputDecoration(
+                    labelText: 'Account type',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'END_USER', child: Text('Participant (browse & join)')),
+                    DropdownMenuItem(value: 'ACTIVITY_MANAGER', child: Text('Activity manager')),
+                    DropdownMenuItem(value: 'PARTNER', child: Text('Partner (organisation)')),
+                  ],
+                  onChanged: _busy ? null : (v) => setState(() => _role = v ?? 'END_USER'),
+                ),
+                if (_role != 'END_USER')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Manager/partner accounts need backoffice verification before they can create activities.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF8A6D00)),
+                    ),
+                  ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: const TextStyle(color: Colors.red)),

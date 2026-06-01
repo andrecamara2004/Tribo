@@ -14,6 +14,7 @@ class RegisterInput {
   final String fullName;
   final String phoneNumber;
   final int age;
+  final String role; // self-selected (D-1); END_USER unless ACTIVITY_MANAGER/PARTNER
 
   const RegisterInput({
     required this.email,
@@ -21,6 +22,7 @@ class RegisterInput {
     required this.fullName,
     required this.phoneNumber,
     required this.age,
+    this.role = 'END_USER',
   });
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +31,7 @@ class RegisterInput {
         'fullName': fullName,
         'phoneNumber': phoneNumber,
         'age': age,
+        'role': role,
       };
 }
 
@@ -36,8 +39,12 @@ class RegisterInput {
 class CurrentUser {
   final String userId;
   final String role;
+  final bool? verified; // known after login/register; null after a whoami bootstrap
 
-  const CurrentUser({required this.userId, required this.role});
+  const CurrentUser({required this.userId, required this.role, this.verified});
+
+  bool get canManage =>
+      role == 'ACTIVITY_MANAGER' || role == 'PARTNER' || role == 'SYSADMIN';
 }
 
 class AuthApi {
@@ -66,6 +73,7 @@ class AuthApi {
     return CurrentUser(
       userId: data['userId'] as String,
       role: data['role'] as String,
+      verified: data['verified'] as bool?,
     );
   }
 
