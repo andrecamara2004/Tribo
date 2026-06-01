@@ -4,6 +4,11 @@ Run together. Compete together. Make impact.
 
 A unified platform combining running tracking, clan-based team competition, and verified community volunteering — built for ADC 2026.
 
+## Live
+
+- **Web client:** https://web-dot-tribo-497810.ew.r.appspot.com
+- **API:** https://tribo-497810.ew.r.appspot.com/rest (e.g. [`/health`](https://tribo-497810.ew.r.appspot.com/rest/health))
+
 ## Repository structure
 
 This is a **monorepo**. Each subproject builds independently.
