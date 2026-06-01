@@ -98,6 +98,21 @@ public class AuthResource {
             throw new ConflictException("An account with this email already exists.");
         }
 
+        // D-1: self-selected role, constrained server-side.
+        Role role = resolveRequestedRole(req.role);
+        boolean verified;
+        String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
+        if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
+            // One-time seed: the configured email is created as a verified
+            // SYSADMIN so there is a privileged account to verify the rest.
+            role = Role.SYSADMIN;
+            verified = true;
+        } else {
+            // END_USER is usable immediately; privileged roles await backoffice
+            // verification before they can act (e.g. create activities).
+            verified = (role == Role.END_USER);
+        }
+
         String userId = UUID.randomUUID().toString();
         User user = new User(
                 userId,
@@ -106,10 +121,11 @@ public class AuthResource {
                 fullName,
                 phone,
                 req.age,
-                Role.END_USER,
+                role,
                 User.ProfileVisibility.PUBLIC,
                 Instant.now(),
-                false
+                false,
+                verified
         );
         USERS.save(user);
 
@@ -117,9 +133,35 @@ public class AuthResource {
                 .entity(Map.of(
                         "userId", userId,
                         "email", email,
-                        "role", user.role().name()
+                        "role", user.role().name(),
+                        "verified", user.verified()
                 ))
                 .build();
+    }
+
+    /** Roles a user may pick at registration. Privileged roles are excluded. */
+    private static final java.util.Set<Role> SELF_REGISTERABLE =
+            java.util.EnumSet.of(Role.END_USER, Role.ACTIVITY_MANAGER, Role.PARTNER);
+
+    /**
+     * Parse and validate the requested role. Null/blank defaults to END_USER.
+     * An unknown role is a 400; a known-but-privileged role (BACKOFFICE,
+     * SYSADMIN) is a 403 — those are never self-assignable.
+     */
+    private static Role resolveRequestedRole(String requested) {
+        if (requested == null || requested.isBlank()) {
+            return Role.END_USER;
+        }
+        Role role;
+        try {
+            role = Role.valueOf(requested.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown role: " + requested);
+        }
+        if (!SELF_REGISTERABLE.contains(role)) {
+            throw new ForbiddenException("That role cannot be self-registered.");
+        }
+        return role;
     }
 
     // --- B-7: login ------------------------------------------------------
@@ -157,7 +199,8 @@ public class AuthResource {
                 "tokenType", "Bearer",
                 "expiresIn", JWT.accessTokenTtlSeconds(),
                 "userId", user.id(),
-                "role", user.role().name()
+                "role", user.role().name(),
+                "verified", user.verified()
         )).build();
     }
 

@@ -11,4 +11,9 @@ public class ForbiddenException extends ApiException {
     public ForbiddenException(String message) {
         super("FORBIDDEN", message, Status.FORBIDDEN);
     }
+
+    /** For more specific 403 codes, e.g. ACCOUNT_NOT_VERIFIED. */
+    public ForbiddenException(String code, String message) {
+        super(code, message, Status.FORBIDDEN);
+    }
 }

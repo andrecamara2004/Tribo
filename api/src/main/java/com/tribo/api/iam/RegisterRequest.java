@@ -7,9 +7,13 @@ package com.tribo.api.iam;
  * setters / field access, and a no-arg constructor is the least fragile shape
  * for that across Jersey + Jackson versions.
  *
- * Deliberately omits `role` and `profileVisibility`: both are server-controlled.
- * A public endpoint that honored a client-supplied role would be a
- * privilege-escalation hole, so role is hardcoded to END_USER in the resource.
+ * `role` is self-selected (D-1) but CONSTRAINED server-side: only END_USER
+ * (default), ACTIVITY_MANAGER, and PARTNER may be requested. Requesting a
+ * privileged role (BACKOFFICE/SYSADMIN) is rejected — honoring it would be a
+ * privilege-escalation hole. Self-selected ACTIVITY_MANAGER/PARTNER accounts
+ * are created UNVERIFIED and can't act until a backoffice verifies them.
+ *
+ * `profileVisibility` remains server-controlled (always PUBLIC for now).
  */
 public class RegisterRequest {
     public String email;
@@ -17,4 +21,5 @@ public class RegisterRequest {
     public String fullName;
     public String phoneNumber;
     public Integer age;   // boxed so a missing value is null (→ 400) rather than silently 0
+    public String role;   // optional; null/blank → END_USER. See class doc for constraints.
 }

@@ -1,0 +1,234 @@
+package com.tribo.api.activity;
+
+import com.tribo.api.error.ForbiddenException;
+import com.tribo.api.error.NotFoundException;
+import com.tribo.api.error.UnauthorizedException;
+import com.tribo.api.error.ValidationException;
+import com.tribo.api.iam.AllowedRoles;
+import com.tribo.api.iam.AuthenticatedUser;
+import com.tribo.api.iam.JwtAuthFilter;
+import com.tribo.api.iam.OwnershipGuard;
+import com.tribo.api.iam.Role;
+import com.tribo.api.iam.User;
+import com.tribo.api.iam.UserRepository;
+
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+import java.net.URI;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Activity management endpoints (Sprint 2).
+ *
+ *   POST   /rest/activities           create        (verified ACTIVITY_MANAGER/PARTNER/SYSADMIN)
+ *   GET    /rest/activities           list/discover (any authenticated user)
+ *   GET    /rest/activities/{id}      detail        (any authenticated user)
+ *   PUT    /rest/activities/{id}      edit          (owner or privileged)
+ *   POST   /rest/activities/{id}/cancel  cancel     (owner or privileged)
+ *
+ * Authentication is enforced for the whole class by JwtAuthFilter (no
+ * @PublicEndpoint). Role gating uses @AllowedRoles; ownership uses
+ * OwnershipGuard. Participation sub-resources live in ParticipationResource.
+ */
+@Path("/activities")
+public class ActivityResource {
+
+    private static final ActivityRepository ACTIVITIES = new ActivityRepository();
+    private static final UserRepository USERS = new UserRepository();
+
+    private static final int DEFAULT_LIMIT = 20;
+    private static final int MAX_LIMIT = 100;
+
+    // --- B2-3: create --------------------------------------------------------
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @AllowedRoles({Role.ACTIVITY_MANAGER, Role.PARTNER, Role.SYSADMIN})
+    public Response create(@Context ContainerRequestContext ctx, ActivityRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        requireVerified(caller);
+
+        Validated v = validate(req);
+
+        Instant now = Instant.now();
+        String id = UUID.randomUUID().toString();
+        Activity activity = new Activity(
+                id,
+                caller.userId(),          // owner is the caller, from the JWT
+                v.title, v.description, v.category, v.location,
+                v.startsAt, v.endsAt, v.capacity,
+                ActivityStatus.PUBLISHED, // published on create so it's discoverable
+                now, now);
+        ACTIVITIES.save(activity);
+
+        return Response.created(URI.create("/rest/activities/" + id))
+                .entity(activity)
+                .build();
+    }
+
+    // --- B2-6: list ----------------------------------------------------------
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response list(
+            @QueryParam("status") @DefaultValue("PUBLISHED") String statusParam,
+            @QueryParam("limit") @DefaultValue("20") int limitParam,
+            @QueryParam("cursor") String cursor) {
+
+        ActivityStatus status = parseStatusFilter(statusParam);
+        int limit = Math.max(1, Math.min(limitParam, MAX_LIMIT));
+        if (limit == 0) limit = DEFAULT_LIMIT;
+
+        ActivityPage page = ACTIVITIES.list(status, limit, cursor);
+        return Response.ok(page).build();
+    }
+
+    // --- B2-7: detail --------------------------------------------------------
+
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response get(@PathParam("id") String id) {
+        Activity activity = ACTIVITIES.findById(id)
+                .orElseThrow(() -> new NotFoundException("No activity with id " + id + "."));
+        return Response.ok(activity).build();
+    }
+
+    // --- B2-4: edit (owner-only) --------------------------------------------
+
+    @PUT
+    @Path("/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response update(@Context ContainerRequestContext ctx,
+                           @PathParam("id") String id,
+                           ActivityRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        Activity existing = ACTIVITIES.findById(id)
+                .orElseThrow(() -> new NotFoundException("No activity with id " + id + "."));
+
+        OwnershipGuard.requireOwnerOrPrivileged(caller, existing.ownerId());
+
+        Validated v = validate(req);
+        Activity updated = new Activity(
+                existing.id(), existing.ownerId(),
+                v.title, v.description, v.category, v.location,
+                v.startsAt, v.endsAt, v.capacity,
+                existing.status(),          // status changes go through /cancel, not PUT
+                existing.createdAt(), Instant.now());
+        ACTIVITIES.save(updated);
+        return Response.ok(updated).build();
+    }
+
+    // --- B2-5: cancel (owner-only soft state change) ------------------------
+
+    @POST
+    @Path("/{id}/cancel")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response cancel(@Context ContainerRequestContext ctx, @PathParam("id") String id) {
+        AuthenticatedUser caller = authUser(ctx);
+        Activity existing = ACTIVITIES.findById(id)
+                .orElseThrow(() -> new NotFoundException("No activity with id " + id + "."));
+
+        OwnershipGuard.requireOwnerOrPrivileged(caller, existing.ownerId());
+
+        if (existing.status() == ActivityStatus.CANCELLED) {
+            return Response.ok(existing).build(); // idempotent
+        }
+        Activity cancelled = new Activity(
+                existing.id(), existing.ownerId(), existing.title(), existing.description(),
+                existing.category(), existing.location(), existing.startsAt(), existing.endsAt(),
+                existing.capacity(), ActivityStatus.CANCELLED,
+                existing.createdAt(), Instant.now());
+        ACTIVITIES.save(cancelled);
+        return Response.ok(cancelled).build();
+    }
+
+    // --- helpers -------------------------------------------------------------
+
+    static AuthenticatedUser authUser(ContainerRequestContext ctx) {
+        Object u = ctx.getProperty(JwtAuthFilter.USER_PROPERTY);
+        if (!(u instanceof AuthenticatedUser user)) {
+            throw new UnauthorizedException("Authentication required.");
+        }
+        return user;
+    }
+
+    /** Privileged roles bypass the verified gate; others must be verified (D-1). */
+    private void requireVerified(AuthenticatedUser caller) {
+        if (OwnershipGuard.isPrivileged(caller.role())) return;
+        User u = USERS.findById(caller.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
+        if (!u.verified()) {
+            throw new ForbiddenException(
+                    "ACCOUNT_NOT_VERIFIED",
+                    "Your account must be verified by a backoffice before you can create activities.");
+        }
+    }
+
+    private static ActivityStatus parseStatusFilter(String s) {
+        if (s == null || s.isBlank() || "ALL".equalsIgnoreCase(s)) return null;
+        try {
+            return ActivityStatus.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown status filter: " + s);
+        }
+    }
+
+    /** Parsed + validated activity fields. */
+    private record Validated(String title, String description, String category, String location,
+                             Instant startsAt, Instant endsAt, int capacity) {
+    }
+
+    private static Validated validate(ActivityRequest req) {
+        if (req == null) throw new ValidationException("Request body is required.");
+
+        String title = trimOrNull(req.title);
+        if (title == null) throw new ValidationException("Title is required.");
+
+        if (req.startsAt == null || req.endsAt == null) {
+            throw new ValidationException("startsAt and endsAt are required.");
+        }
+        Instant startsAt;
+        Instant endsAt;
+        try {
+            startsAt = Instant.parse(req.startsAt.trim());
+            endsAt = Instant.parse(req.endsAt.trim());
+        } catch (DateTimeException e) {
+            throw new ValidationException("startsAt and endsAt must be ISO-8601 instants, e.g. 2026-07-01T18:00:00Z.");
+        }
+        if (!endsAt.isAfter(startsAt)) {
+            throw new ValidationException("endsAt must be after startsAt.");
+        }
+        if (req.capacity == null || req.capacity < 1) {
+            throw new ValidationException("Capacity must be at least 1.");
+        }
+
+        String description = req.description == null ? "" : req.description.trim();
+        String category = req.category == null ? "" : req.category.trim();
+        String location = req.location == null ? "" : req.location.trim();
+        return new Validated(title, description, category, location, startsAt, endsAt, req.capacity);
+    }
+
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+}

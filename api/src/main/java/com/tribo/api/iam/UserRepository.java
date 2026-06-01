@@ -60,6 +60,7 @@ public class UserRepository {
                 .set("profileVisibility", user.profileVisibility().name())
                 .set("createdAt", user.createdAt().toString())
                 .set("suspended", user.suspended())
+                .set("verified", user.verified())
                 .build();
 
         DATASTORE.put(entity);
@@ -115,7 +116,27 @@ public class UserRepository {
                 Role.valueOf(e.getString("role")),
                 User.ProfileVisibility.valueOf(e.getString("profileVisibility")),
                 Instant.parse(e.getString("createdAt")),
-                e.getBoolean("suspended")
+                e.getBoolean("suspended"),
+                // Legacy entities (created before the verified flag) default to
+                // verified=true: they're END_USERs and were already able to act.
+                !e.contains("verified") || e.getBoolean("verified")
         );
+    }
+
+    /**
+     * Marks a user verified (backoffice action, D-1). No-op if the user is
+     * already verified. Returns the updated user, or empty if no such user.
+     */
+    public Optional<User> markVerified(String id) {
+        Optional<User> found = findById(id);
+        if (found.isEmpty()) return Optional.empty();
+        User u = found.get();
+        if (u.verified()) return found;
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), true);
+        save(updated);
+        return Optional.of(updated);
     }
 }

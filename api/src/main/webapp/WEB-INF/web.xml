@@ -15,7 +15,7 @@
         <!-- Auto-discover @Path classes in this package -->
         <init-param>
             <param-name>jersey.config.server.provider.packages</param-name>
-            <param-value>com.tribo.api,com.tribo.api.error,com.tribo.api.iam</param-value>
+            <param-value>com.tribo.api,com.tribo.api.error,com.tribo.api.iam,com.tribo.api.activity</param-value>
         </init-param>
 
         <!-- Enable JSON via Jackson -->
