@@ -26,17 +26,16 @@ import java.util.Optional;
  * We enforce email uniqueness at the application level inside the register
  * endpoint (ticket B-6) by calling existsByEmail() before save().
  *
- * This is a singleton-style class with a static Datastore client, matching
- * the pattern from PingDbResource. For a larger app we'd inject this via
- * a DI container; for sprint 1, simple static is fine.
+ * This is a singleton-style class with a static Datastore client. For a
+ * larger app we'd inject this via a DI container; for sprint 1, simple
+ * static is fine. (The Activity repository in Sprint 2 follows this pattern.)
  */
 public class UserRepository {
 
     static final String KIND = "User";
 
-    // Same client pattern as PingDbResource — uses Application Default Credentials,
-    // which means the App Engine default service account in production and the
-    // DATASTORE_EMULATOR_HOST env var locally.
+    // Uses Application Default Credentials — the App Engine default service
+    // account in production and the DATASTORE_EMULATOR_HOST env var locally.
     private static final Datastore DATASTORE =
             DatastoreOptions.getDefaultInstance().getService();
 

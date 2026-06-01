@@ -10,8 +10,8 @@ import java.lang.annotation.Target;
 /**
  * Marker for endpoints that don't require authentication.
  *
- * Applied to register, login, refresh, the health probe, and the ping-user
- * probe. Everything else requires a valid access token by default.
+ * Applied to register, login, refresh, logout, and the health probe.
+ * Everything else requires a valid access token by default.
  *
  * The @NameBinding makes Jersey treat this as a filter-targeting annotation —
  * JwtAuthFilter's matching logic checks for it to decide whether to enforce

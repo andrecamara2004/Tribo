@@ -11,8 +11,11 @@ api/
     ├── appengine/app.yaml             App Engine runtime config
     ├── webapp/WEB-INF/web.xml         Jersey servlet wiring
     └── java/com/tribo/api/
-        ├── HealthResource.java        GET /api/health
-        └── PingDbResource.java        GET /api/ping-db
+        ├── HealthResource.java        GET /rest/health
+        ├── AuthResource.java          POST /rest/auth/{register,login,refresh,logout}
+        ├── PingAuthResource.java      GET /rest/ping-auth/whoami (session-bootstrap probe)
+        ├── iam/                       JWT, RBAC, password hashing, user + token repos
+        └── error/                     ApiException hierarchy + JAX-RS ExceptionMapper
 ```
 
 ## Prerequisites
@@ -50,14 +53,13 @@ For `tribo-beta` in `europe-west1`, that's `https://tribo-beta.ew.r.appspot.com`
 ## Verify
 
 ```
-curl https://tribo-beta.ew.r.appspot.com/api/health
+curl https://tribo-beta.ew.r.appspot.com/rest/health
 # → {"status":"ok"}
-
-curl https://tribo-beta.ew.r.appspot.com/api/ping-db
-# → {"ok":true,"id":"...","createdAt":"...","message":"hello from tribo-api"}
 ```
 
-If both work, the foundations are good: API is deployed, Jersey is wired, JSON serialisation works, and the App Engine service account can read/write Datastore.
+If that works, the API is deployed, Jersey is wired, and JSON serialisation works. Datastore read/write is exercised by the real IAM endpoints (`/rest/auth/register` → `/rest/auth/login`).
+
+> The old `/ping-db` and `/ping-user` connectivity probes were removed in the Sprint 1 security close-out (SEC-0) — they wrote to real Datastore kinds and `/ping-user/mint-token` was a public RBAC bypass. See `docs/sprint-2-backlog.md` §1.
 
 ## Local development with the emulator
 
