@@ -27,21 +27,74 @@ export function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "64px auto", fontFamily: "system-ui" }}>
-      <h1>Log in</h1>
-      <form onSubmit={onSubmit}>
-        <input type="email" placeholder="Email" value={email}
-          onChange={(e) => setEmail(e.target.value)} required
-          style={{ display: "block", width: "100%", marginBottom: 8, padding: 8 }} />
-        <input type="password" placeholder="Password" value={password}
-          onChange={(e) => setPassword(e.target.value)} required
-          style={{ display: "block", width: "100%", marginBottom: 8, padding: 8 }} />
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" disabled={busy} style={{ width: "100%", padding: 10 }}>
-          {busy ? "Logging in…" : "Log in"}
-        </button>
-      </form>
-      <p>No account? <Link to="/register">Register</Link></p>
+    <div className="login">
+      <aside className="login-art">
+        <div className="login-logo">
+          <img src="/assets/TriboLogo_NoBackground.png" alt="Tribo" width="36" height="36" />
+          <span>Tribo</span>
+        </div>
+
+        <div>
+          <h1>
+            Run together.
+            <br />
+            Compete together.
+            <br />
+            Make impact.
+          </h1>
+          <p>
+            Form a clan. Climb the rankings. Clean up your city.
+            <br />
+            A runner's app for people who don't run alone.
+          </p>
+        </div>
+
+        <div className="login-quote">
+          "We jumped from 4th to 1st in two weeks just because the team knew the
+          average pace was on the line."
+          <strong>— Forest Runners, currently #1</strong>
+        </div>
+      </aside>
+
+      <section className="login-form">
+        <h2>Welcome back</h2>
+        <p className="subtitle">Sign in to your Tribo account</p>
+
+        <form onSubmit={onSubmit}>
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p className="login-footer">
+          New to Tribo? <Link to="/register">Create your account →</Link>
+        </p>
+      </section>
     </div>
   );
 }

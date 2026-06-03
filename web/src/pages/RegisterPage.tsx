@@ -45,39 +45,93 @@ export function RegisterPage() {
     }
   }
 
-  const field = { display: "block", width: "100%", marginBottom: 8, padding: 8 } as const;
-
   return (
-    <div style={{ maxWidth: 360, margin: "64px auto", fontFamily: "system-ui" }}>
-      <h1>Register</h1>
-      <form onSubmit={onSubmit}>
-        <input type="email" placeholder="Email" value={form.email}
-          onChange={(e) => update("email", e.target.value)} required style={field} />
-        <input type="password" placeholder="Password (min 8)" value={form.password}
-          onChange={(e) => update("password", e.target.value)} required style={field} />
-        <input type="text" placeholder="Full name" value={form.fullName}
-          onChange={(e) => update("fullName", e.target.value)} required style={field} />
-        <input type="tel" placeholder="Phone (+351...)" value={form.phoneNumber}
-          onChange={(e) => update("phoneNumber", e.target.value)} required style={field} />
-        <input type="number" placeholder="Age" value={form.age}
-          onChange={(e) => update("age", e.target.value)} required style={field} />
-        <label style={{ fontSize: 13, color: "#555" }}>Account type</label>
-        <select value={form.role} onChange={(e) => update("role", e.target.value)} style={field}>
-          <option value="END_USER">Participant (browse &amp; join)</option>
-          <option value="ACTIVITY_MANAGER">Activity manager (create activities)</option>
-          <option value="PARTNER">Partner (organisation)</option>
-        </select>
-        {form.role !== "END_USER" && (
-          <p style={{ fontSize: 13, color: "#8a6d00" }}>
-            Manager/partner accounts need backoffice verification before they can create activities.
+    <div className="login">
+      <aside className="login-art">
+        <div className="login-logo">
+          <img src="/assets/TriboLogo_NoBackground.png" alt="Tribo" width="36" height="36" />
+          <span>Tribo</span>
+        </div>
+
+        <div>
+          <h1>
+            Join the tribe.
+            <br />
+            Pick your clan.
+            <br />
+            Start the climb.
+          </h1>
+          <p>
+            Log your runs, show up for clean-up events, and push your clan up the
+            rankings. It's better with a team.
           </p>
-        )}
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" disabled={busy} style={{ width: "100%", padding: 10 }}>
-          {busy ? "Creating…" : "Create account"}
-        </button>
-      </form>
-      <p>Have an account? <Link to="/login">Log in</Link></p>
+        </div>
+
+        <div className="login-quote">
+          "Verified attendance, not self-reported numbers — that's why the
+          leaderboard actually means something."
+          <strong>— Tribo community</strong>
+        </div>
+      </aside>
+
+      <section className="login-form">
+        <h2>Create your account</h2>
+        <p className="subtitle">It takes less than a minute</p>
+
+        <form onSubmit={onSubmit}>
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" value={form.email}
+              onChange={(e) => update("email", e.target.value)} required autoComplete="email" />
+          </div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={form.password}
+              onChange={(e) => update("password", e.target.value)} required
+              autoComplete="new-password" placeholder="At least 8 characters" />
+          </div>
+          <div className="field">
+            <label htmlFor="fullName">Full name</label>
+            <input id="fullName" type="text" value={form.fullName}
+              onChange={(e) => update("fullName", e.target.value)} required autoComplete="name" />
+          </div>
+          <div className="field">
+            <label htmlFor="phone">Phone</label>
+            <input id="phone" type="tel" value={form.phoneNumber}
+              onChange={(e) => update("phoneNumber", e.target.value)} required
+              placeholder="+351…" autoComplete="tel" />
+          </div>
+          <div className="field">
+            <label htmlFor="age">Age</label>
+            <input id="age" type="number" value={form.age}
+              onChange={(e) => update("age", e.target.value)} required min={13} max={120} />
+          </div>
+          <div className="field">
+            <label htmlFor="role">Account type</label>
+            <select id="role" value={form.role} onChange={(e) => update("role", e.target.value)}>
+              <option value="END_USER">Participant (browse &amp; join)</option>
+              <option value="ACTIVITY_MANAGER">Activity manager (create activities)</option>
+              <option value="PARTNER">Partner (organisation)</option>
+            </select>
+            {form.role !== "END_USER" && (
+              <div className="hint warn">
+                Manager / partner accounts need backoffice verification before they can
+                create activities.
+              </div>
+            )}
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+            {busy ? "Creating…" : "Create account"}
+          </button>
+        </form>
+
+        <p className="login-footer">
+          Have an account? <Link to="/login">Sign in →</Link>
+        </p>
+      </section>
     </div>
   );
 }

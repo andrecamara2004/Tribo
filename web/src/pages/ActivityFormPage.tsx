@@ -11,6 +11,8 @@ import {
   type ActivityInput,
 } from "../api/activities";
 import { ApiError } from "../api/http";
+import { Shell } from "../components/Shell";
+import { Icon } from "../components/Icon";
 
 /** ISO-8601 instant → value for <input type="datetime-local"> (local time). */
 function isoToLocalInput(iso: string): string {
@@ -102,33 +104,75 @@ export function ActivityFormPage() {
     }
   }
 
-  if (loading) return <p style={{ padding: 24, fontFamily: "system-ui" }}>Loading…</p>;
-
-  const field = { display: "block", width: "100%", marginBottom: 8, padding: 8 } as const;
+  if (loading)
+    return (
+      <Shell>
+        <p className="state-msg">Loading…</p>
+      </Shell>
+    );
 
   return (
-    <div style={{ maxWidth: 480, margin: "48px auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <h1>{editing ? "Edit activity" : "Create activity"}</h1>
-      <form onSubmit={onSubmit}>
-        <input placeholder="Title" value={form.title} onChange={(e) => update("title", e.target.value)} required style={field} />
-        <textarea placeholder="Description" value={form.description} onChange={(e) => update("description", e.target.value)} style={{ ...field, minHeight: 80 }} />
-        <input placeholder="Category (e.g. sports)" value={form.category} onChange={(e) => update("category", e.target.value)} style={field} />
-        <input placeholder="Location" value={form.location} onChange={(e) => update("location", e.target.value)} style={field} />
-        <label style={{ fontSize: 13, color: "#555" }}>Starts</label>
-        <input type="datetime-local" value={form.startsAt} onChange={(e) => update("startsAt", e.target.value)} required style={field} />
-        <label style={{ fontSize: 13, color: "#555" }}>Ends</label>
-        <input type="datetime-local" value={form.endsAt} onChange={(e) => update("endsAt", e.target.value)} required style={field} />
-        <input type="number" placeholder="Capacity" value={form.capacity} onChange={(e) => update("capacity", e.target.value)} required style={field} />
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" disabled={busy} style={{ padding: 10 }}>
-            {busy ? "Saving…" : editing ? "Save changes" : "Create"}
-          </button>
-          <button type="button" onClick={() => navigate(-1)} style={{ padding: 10 }}>
-            Cancel
-          </button>
+    <Shell>
+      <div className="page-narrow">
+        <button className="back-link" onClick={() => navigate(-1)}>
+          <Icon name="back" size={15} /> Back
+        </button>
+
+        <div className="topbar">
+          <div>
+            <h1>{editing ? "Edit activity" : "Host an event"}</h1>
+            <div className="sub">
+              {editing ? "Update the details below" : "Set up a new volunteer run or clean-up"}
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
+
+        <form className="card" onSubmit={onSubmit}>
+          <div className="field">
+            <label htmlFor="title">Title</label>
+            <input id="title" value={form.title} onChange={(e) => update("title", e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="description">Description</label>
+            <textarea id="description" value={form.description} onChange={(e) => update("description", e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="category">Category</label>
+            <input id="category" placeholder="e.g. river, trail, beach" value={form.category}
+              onChange={(e) => update("category", e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="location">Location</label>
+            <input id="location" value={form.location} onChange={(e) => update("location", e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="startsAt">Starts</label>
+            <input id="startsAt" type="datetime-local" value={form.startsAt}
+              onChange={(e) => update("startsAt", e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="endsAt">Ends</label>
+            <input id="endsAt" type="datetime-local" value={form.endsAt}
+              onChange={(e) => update("endsAt", e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="capacity">Capacity</label>
+            <input id="capacity" type="number" min={1} value={form.capacity}
+              onChange={(e) => update("capacity", e.target.value)} required />
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <div className="action-row" style={{ marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? "Saving…" : editing ? "Save changes" : "Create activity"}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </Shell>
   );
 }

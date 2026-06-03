@@ -12,6 +12,10 @@ import {
   type Roster,
 } from "../api/activities";
 import { ApiError } from "../api/http";
+import { Shell } from "../components/Shell";
+import { Icon } from "../components/Icon";
+import { Avatar } from "../components/Avatar";
+import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
 
 const PRIVILEGED = ["BACKOFFICE", "SYSADMIN"];
 
@@ -73,79 +77,108 @@ export function ActivityDetailPage() {
     }, "Activity cancelled.");
   }
 
-  if (loading) return <p style={{ padding: 24, fontFamily: "system-ui" }}>Loading…</p>;
-  if (error && !activity) return <p style={{ padding: 24, color: "crimson" }}>{error}</p>;
+  if (loading)
+    return (
+      <Shell>
+        <p className="state-msg">Loading…</p>
+      </Shell>
+    );
+  if (error && !activity)
+    return (
+      <Shell>
+        <p className="state-msg error">{error}</p>
+      </Shell>
+    );
   if (!activity) return null;
 
   const past = started;
   const joinable = activity.status === "PUBLISHED" && !past;
 
   return (
-    <div style={{ maxWidth: 640, margin: "48px auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <Link to="/activities">← Back</Link>
-      <h1>{activity.title}</h1>
-      <p style={{ color: "#555" }}>
-        Status: <strong>{activity.status}</strong>
-        {past && activity.status === "PUBLISHED" && " (already started)"}
-      </p>
+    <Shell>
+      <div className="page-narrow">
+        <Link to="/activities" className="back-link">
+          <Icon name="back" size={15} /> Back to activities
+        </Link>
 
-      <dl style={{ display: "grid", gridTemplateColumns: "120px 1fr", rowGap: 6 }}>
-        <dt>When</dt><dd>{new Date(activity.startsAt).toLocaleString()} → {new Date(activity.endsAt).toLocaleString()}</dd>
-        <dt>Where</dt><dd>{activity.location || "—"}</dd>
-        <dt>Category</dt><dd>{activity.category || "—"}</dd>
-        <dt>Capacity</dt><dd>{activity.capacity}</dd>
-        <dt>Description</dt><dd>{activity.description || "—"}</dd>
-      </dl>
+        <div className="detail-head">
+          <h1>{activity.title}</h1>
+          <span className={statusPillClass(activity.status)}>
+            {statusLabel(activity.status)}
+            {past && activity.status === "PUBLISHED" && " · started"}
+          </span>
+        </div>
 
-      {notice && <p style={{ color: "green" }}>{notice}</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+        <div className="card">
+          <dl className="detail-meta">
+            <dt>When</dt>
+            <dd>{formatWhen(activity.startsAt)} → {formatWhen(activity.endsAt)}</dd>
+            <dt>Where</dt>
+            <dd>{activity.location || "—"}</dd>
+            <dt>Category</dt>
+            <dd>{activity.category || "—"}</dd>
+            <dt>Capacity</dt>
+            <dd>{activity.capacity} spots</dd>
+            <dt>Description</dt>
+            <dd>{activity.description || "—"}</dd>
+          </dl>
+        </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-        <button
-          disabled={busy || !joinable}
-          onClick={() => act(() => joinActivity(id), "You're registered for this activity.")}
-          style={{ padding: "8px 12px" }}
-        >
-          Join
-        </button>
-        <button
-          disabled={busy}
-          onClick={() => act(() => withdrawFromActivity(id), "You've withdrawn from this activity.")}
-          style={{ padding: "8px 12px" }}
-        >
-          Withdraw
-        </button>
+        {notice && <p className="form-notice" style={{ marginTop: 16 }}>{notice}</p>}
+        {error && <p className="form-error" style={{ marginTop: 16 }}>{error}</p>}
 
-        {isOwner && (
-          <>
-            <button disabled={busy} onClick={() => navigate(`/activities/${id}/edit`)} style={{ padding: "8px 12px" }}>
-              Edit
-            </button>
-            {activity.status !== "CANCELLED" && (
-              <button disabled={busy} onClick={onCancel} style={{ padding: "8px 12px", color: "crimson" }}>
-                Cancel activity
+        <div className="action-row">
+          <button
+            className="btn btn-primary"
+            disabled={busy || !joinable}
+            onClick={() => act(() => joinActivity(id), "You're registered for this activity.")}
+          >
+            Join
+          </button>
+          <button
+            className="btn btn-secondary"
+            disabled={busy}
+            onClick={() => act(() => withdrawFromActivity(id), "You've withdrawn from this activity.")}
+          >
+            Withdraw
+          </button>
+
+          {isOwner && (
+            <>
+              <button className="btn btn-secondary" disabled={busy} onClick={() => navigate(`/activities/${id}/edit`)}>
+                Edit
               </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {isOwner && roster && (
-        <div style={{ marginTop: 24 }}>
-          <h2>Participants ({roster.count})</h2>
-          {roster.participants.length === 0 ? (
-            <p>No one has joined yet.</p>
-          ) : (
-            <ul>
-              {roster.participants.map((p) => (
-                <li key={p.userId}>
-                  <code>{p.userId}</code> — {new Date(p.joinedAt).toLocaleString()}
-                </li>
-              ))}
-            </ul>
+              {activity.status !== "CANCELLED" && (
+                <button className="btn btn-danger" disabled={busy} onClick={onCancel}>
+                  Cancel activity
+                </button>
+              )}
+            </>
           )}
         </div>
-      )}
-    </div>
+
+        {isOwner && roster && (
+          <div className="card" style={{ marginTop: 24 }}>
+            <div className="card-title">
+              <h3>Participants</h3>
+              <small>{roster.count} joined</small>
+            </div>
+            {roster.participants.length === 0 ? (
+              <p className="state-msg">No one has joined yet.</p>
+            ) : (
+              <ul className="roster-list">
+                {roster.participants.map((p) => (
+                  <li key={p.userId}>
+                    <Avatar name={p.userId.slice(0, 2)} size="sm" />
+                    <code>{p.userId}</code>
+                    <small>{formatWhen(p.joinedAt)}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+    </Shell>
   );
 }

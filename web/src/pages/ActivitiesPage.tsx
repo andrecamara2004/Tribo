@@ -1,19 +1,23 @@
 // src/pages/ActivitiesPage.tsx
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listActivities, type Activity } from "../api/activities";
 import { ApiError } from "../api/http";
+import { Shell } from "../components/Shell";
+import { Icon } from "../components/Icon";
+import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
 
 export function ActivitiesPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Activity[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState("All");
 
   // Initial load. Self-contained in the effect (no setState before the await)
   // so it doesn't trip react-hooks/set-state-in-effect.
@@ -48,54 +52,111 @@ export function ActivitiesPage() {
     }
   }
 
+  // Distinct categories present in the loaded data → client-side filter chips.
+  const categories = useMemo(() => {
+    const set = new Set(items.map((a) => a.category).filter(Boolean));
+    return ["All", ...Array.from(set)];
+  }, [items]);
+
+  const visible = category === "All" ? items : items.filter((a) => a.category === category);
+
   const canManage = user != null && MANAGER_ROLES.includes(user.role);
 
   return (
-    <div style={{ maxWidth: 640, margin: "48px auto", fontFamily: "system-ui", padding: "0 16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Activities</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          {canManage && (
-            <button onClick={() => navigate("/activities/new")} style={{ padding: "8px 12px" }}>
-              + Create
-            </button>
+    <Shell>
+      <div className="topbar">
+        <div>
+          <h1>Activities</h1>
+          <div className="sub">Volunteer runs and clean-up events near you</div>
+        </div>
+        <div className="right">
+          {canManage ? (
+            <div className="host-cluster">
+              <button className="btn btn-primary" onClick={() => navigate("/activities/new")}>
+                <Icon name="plus" size={16} /> Host an event
+              </button>
+              <small className="role-note">As {user!.role.replace(/_/g, " ").toLowerCase()}, you can host</small>
+            </div>
+          ) : (
+            <div className="host-cluster">
+              <button className="btn btn-secondary" disabled title="Activity Managers and Partners can host">
+                <Icon name="plus" size={16} /> Host an event
+              </button>
+              <small className="role-note">Activity Managers &amp; Partners only</small>
+            </div>
           )}
-          <button onClick={async () => { await logout(); navigate("/login"); }} style={{ padding: "8px 12px" }}>
-            Log out
-          </button>
         </div>
       </div>
 
       {user?.verified === false && canManage && (
-        <p style={{ background: "#fff3cd", padding: 12, borderRadius: 6 }}>
-          Your account is pending backoffice verification. You can browse, but creating activities
-          will be rejected until you're verified.
-        </p>
+        <div className="eligibility-banner warn">
+          <Icon name="leaf" size={16} />
+          Your account is pending backoffice verification — you can browse, but creating
+          activities will be rejected until you're verified.
+        </div>
       )}
 
-      {loading && <p>Loading…</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      {!loading && items.length === 0 && <p>No activities yet.</p>}
+      {categories.length > 1 && (
+        <div className="vol-filters">
+          {categories.map((c) => (
+            <button key={c} className={category === c ? "active" : ""} onClick={() => setCategory(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {items.map((a) => (
-          <li key={a.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16, marginBottom: 12 }}>
-            <Link to={`/activities/${a.id}`} style={{ fontSize: 18, fontWeight: 600, textDecoration: "none" }}>
-              {a.title}
-            </Link>
-            <div style={{ color: "#555", marginTop: 4 }}>
-              {new Date(a.startsAt).toLocaleString()} · {a.location || "—"} · cap {a.capacity}
+      {loading && <p className="state-msg">Loading activities…</p>}
+      {error && <p className="state-msg error">{error}</p>}
+      {!loading && visible.length === 0 && <p className="state-msg">No activities yet.</p>}
+
+      <div className="vol-grid">
+        {visible.map((a) => (
+          <article
+            key={a.id}
+            className="vol-card"
+            onClick={() => navigate(`/activities/${a.id}`)}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="vol-head">
+              <div style={{ minWidth: 0 }}>
+                <h3>{a.title}</h3>
+                <div className="when">{formatWhen(a.startsAt)}</div>
+              </div>
+              <div className="vol-head-tags">
+                <span className={statusPillClass(a.status)}>{statusLabel(a.status)}</span>
+                {a.category && <span className="pill gray">{a.category}</span>}
+              </div>
             </div>
-            {a.category && <div style={{ color: "#888", fontSize: 13 }}>{a.category}</div>}
-          </li>
+
+            {a.description && (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                {a.description.length > 140 ? a.description.slice(0, 140) + "…" : a.description}
+              </p>
+            )}
+
+            <div className="vol-meta">
+              <div><Icon name="pin" size={14} /> {a.location || "—"}</div>
+              <div><Icon name="users" size={14} /> {a.capacity} spots</div>
+            </div>
+
+            <div className="vol-foot">
+              <span className="when" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="clock" size={13} /> ends {formatWhen(a.endsAt)}
+              </span>
+              <span className="btn btn-secondary">View details →</span>
+            </div>
+          </article>
         ))}
-      </ul>
+      </div>
 
       {cursor && !loading && (
-        <button onClick={loadMore} style={{ padding: "8px 12px" }}>
-          Load more
-        </button>
+        <div style={{ marginTop: 20 }}>
+          <button className="btn btn-secondary" onClick={loadMore}>
+            Load more
+          </button>
+        </div>
       )}
-    </div>
+    </Shell>
   );
 }
