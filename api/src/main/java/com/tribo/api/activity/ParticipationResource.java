@@ -1,16 +1,20 @@
 package com.tribo.api.activity;
 
 import com.tribo.api.error.ApiException;
+import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.NotFoundException;
+import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.OwnershipGuard;
 
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -40,10 +44,13 @@ public class ParticipationResource {
 
     @POST
     @Produces(MediaType.APPLICATION_JSON)
-    public Response join(@Context ContainerRequestContext ctx, @PathParam("id") String activityId) {
+    public Response join(@Context ContainerRequestContext ctx, @PathParam("id") String activityId,
+                         @QueryParam("role") @DefaultValue("participant") String roleParam) {
         AuthenticatedUser caller = ActivityResource.authUser(ctx);
         Activity activity = ACTIVITIES.findById(activityId)
                 .orElseThrow(() -> new NotFoundException("No activity with id " + activityId + "."));
+
+        ParticipationRole role = parseRole(roleParam);
 
         if (activity.status() != ActivityStatus.PUBLISHED) {
             throw conflict("ACTIVITY_NOT_OPEN", "This activity is not open for registration.");
@@ -54,21 +61,45 @@ public class ParticipationResource {
         if (PARTICIPANTS.exists(activityId, caller.userId())) {
             throw conflict("ALREADY_JOINED", "You have already joined this activity.");
         }
-        // Capacity check. Not transactional — a rare race could admit one over
-        // capacity; acceptable for Sprint 1-scale traffic. Tighten with a
-        // Datastore transaction if it becomes a real concern.
-        if (PARTICIPANTS.countByActivity(activityId) >= activity.capacity()) {
-            throw conflict("ACTIVITY_FULL", "This activity is full.");
+
+        // Capacity is per role. Not transactional — a rare race could admit one
+        // over capacity; acceptable at this scale.
+        if (role == ParticipationRole.STAFF) {
+            if (activity.eventKind() != EventKind.VOLUNTEER || activity.staffCapacity() <= 0) {
+                throw conflict("NOT_A_VOLUNTEER_EVENT", "This event has no staff roles.");
+            }
+            if (!VolunteerStats.isStaffEligible(caller.userId())) {
+                throw new ForbiddenException("NOT_STAFF_ELIGIBLE",
+                        "You need to join at least " + VolunteerStats.STAFF_THRESHOLD
+                                + " volunteer events before you can be staff.");
+            }
+            if (PARTICIPANTS.countByActivityAndRole(activityId, ParticipationRole.STAFF) >= activity.staffCapacity()) {
+                throw conflict("STAFF_FULL", "Staff spots are full.");
+            }
+        } else {
+            if (PARTICIPANTS.countByActivityAndRole(activityId, ParticipationRole.PARTICIPANT) >= activity.capacity()) {
+                throw conflict("ACTIVITY_FULL", "This activity is full.");
+            }
         }
 
-        Participation p = new Participation(activityId, caller.userId(), Instant.now());
+        Participation p = new Participation(activityId, caller.userId(), Instant.now(), role);
         PARTICIPANTS.save(p);
         return Response.status(Response.Status.CREATED)
                 .entity(Map.of(
                         "activityId", p.activityId(),
                         "userId", p.userId(),
-                        "joinedAt", p.joinedAt().toString()))
+                        "joinedAt", p.joinedAt().toString(),
+                        "role", p.role().name()))
                 .build();
+    }
+
+    private static ParticipationRole parseRole(String raw) {
+        if (raw == null || raw.isBlank()) return ParticipationRole.PARTICIPANT;
+        try {
+            return ParticipationRole.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown role: " + raw + " (use participant or staff).");
+        }
     }
 
     // --- B2-9: withdraw ------------------------------------------------------
@@ -96,7 +127,8 @@ public class ParticipationResource {
         List<Map<String, Object>> participants = PARTICIPANTS.findByActivity(activityId).stream()
                 .map(p -> Map.<String, Object>of(
                         "userId", p.userId(),
-                        "joinedAt", p.joinedAt().toString()))
+                        "joinedAt", p.joinedAt().toString(),
+                        "role", p.role().name()))
                 .toList();
 
         return Response.ok(Map.of(

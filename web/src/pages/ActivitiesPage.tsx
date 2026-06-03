@@ -125,7 +125,15 @@ export function ActivitiesPage() {
               </div>
               <div className="vol-head-tags">
                 <span className={statusPillClass(a.status)}>{statusLabel(a.status)}</span>
-                {a.category && <span className="pill gray">{a.category}</span>}
+                {a.eventKind === "VOLUNTEER" && a.pointsParticipant ? (
+                  <span className="pill">+{a.pointsParticipant} pts</span>
+                ) : null}
+                {a.eventKind === "VOLUNTEER" && (
+                  <span className={a.verifiedBy === "PARTNER" ? "pill partner" : "pill"}>
+                    {a.verifiedBy === "PARTNER" ? "🏛️ Partner-verified" : "👥 Peer-verified"}
+                  </span>
+                )}
+                {a.userRole && <span className="pill gold">You're in</span>}
               </div>
             </div>
 
@@ -137,8 +145,22 @@ export function ActivitiesPage() {
 
             <div className="vol-meta">
               <div><Icon name="pin" size={14} /> {a.location || "—"}</div>
-              <div><Icon name="users" size={14} /> {a.capacity} spots</div>
+              {a.eventKind === "VOLUNTEER" && a.distanceKm ? (
+                <div><Icon name="ruler" size={14} /> {a.distanceKm} km</div>
+              ) : null}
+              <div>
+                <Icon name="users" size={14} />
+                {a.eventKind === "VOLUNTEER"
+                  ? ` ${a.participantsJoined ?? 0}/${a.capacity} · ${a.staffJoined ?? 0}/${a.staffCapacity} staff`
+                  : ` ${a.capacity} spots`}
+              </div>
             </div>
+
+            {a.tags && a.tags.length > 0 && (
+              <div className="vol-tags">
+                {a.tags.map((t) => <span key={t} className="pill gray">{t}</span>)}
+              </div>
+            )}
 
             <div className="vol-foot">
               <span className="when" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

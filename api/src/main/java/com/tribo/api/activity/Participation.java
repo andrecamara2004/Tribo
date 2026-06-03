@@ -14,7 +14,8 @@ import java.time.Instant;
 public record Participation(
         String activityId,
         String userId,
-        Instant joinedAt
+        Instant joinedAt,
+        ParticipationRole role      // PARTICIPANT (default) | STAFF (D-6)
 ) {
     /** Deterministic key so (activity, user) is unique. */
     public String key() {

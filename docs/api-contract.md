@@ -445,6 +445,382 @@ Owner-only (or `BACKOFFICE`/`SYSADMIN`).
 
 ---
 
+## 3.6 Sprint 3 endpoints — Profiles & Clans
+
+Foundation for the prototype's social screens (Profile, Feed, Clan ranking). This
+phase ships the **full user profile read** (deferred since Sprint 1) and the
+**Clan** domain (membership, create/join/leave). All endpoints require a valid
+access token; gating uses the same mechanisms as Sprints 1–2.
+
+> **Doc-first.** Later Sprint 3 phases (Runs, Volunteer-event extensions, Feed,
+> Clan ranking) are tracked in `docs/sprint-3-backlog.md` and will be added to
+> this contract as each lands. This section covers Phase 1 only.
+
+### `GET /rest/users/me` — full profile
+
+The richer profile read the Sprint 1 contract deferred (§3, "Deferred — full
+profile"). Does a Datastore read (unlike `/ping-auth/whoami`, which only decodes
+the JWT). Use `whoami` for the cheap session-bootstrap probe; use `me` to
+populate profile/identity UI.
+
+**Request:** none.
+
+**Response 200:** (never includes `passwordHash`)
+
+```json
+{
+  "userId": "u_8f2c...",
+  "email": "ana@example.com",
+  "fullName": "Ana Costa",
+  "age": 28,
+  "role": "ACTIVITY_MANAGER",
+  "verified": true,
+  "profileVisibility": "PUBLIC",
+  "createdAt": "2026-06-01T15:00:00Z",
+  "handle": "@ana",
+  "avatarColor": "#00B86B",
+  "clan": { "id": "c_1a2b...", "name": "Forest Runners", "tag": "FOR", "color": "#00B86B" }
+}
+```
+
+- `handle` — derived from the email local-part (cosmetic; not unique).
+- `avatarColor` — deterministic hex from `userId` (cosmetic).
+- `clan` — `null` if the user isn't in a clan.
+
+**Errors:** `401` `INVALID_TOKEN`. **Auth:** any authenticated user.
+
+### The Clan resource
+
+```json
+{ "id": "c_1a2b...", "name": "Forest Runners", "tag": "FOR",
+  "color": "#00B86B", "ownerId": "u_8f2c...", "createdAt": "2026-06-01T15:00:00Z",
+  "memberCount": 12 }
+```
+
+- `tag` — short uppercase label, 2–5 chars (e.g. `FOR`).
+- `color` — hex string (`#RRGGBB`).
+- `memberCount` — derived (count of users whose `clanId` is this clan); present on
+  read responses, not stored.
+- A user belongs to **at most one** clan (D-3); membership is the `clanId` field
+  on the user, not a separate entity.
+
+### `POST /rest/clans` — create
+
+Creates a clan; the **caller auto-joins** as a member and is recorded as `ownerId`.
+If the caller was already in a clan, they switch to the new one.
+
+**Request:** `{ "name": "Forest Runners", "tag": "FOR", "color": "#00B86B" }`
+
+**Response 201** (`Location: /rest/clans/{id}`): the created Clan (`memberCount: 1`).
+
+**Errors:** `400` `VALIDATION_ERROR` — name empty, `tag` not 2–5 chars, `color`
+not `#RRGGBB`. **Auth:** any authenticated user. (Name/tag uniqueness is **not**
+enforced yet — D-3.)
+
+### `GET /rest/clans` — list
+
+**Response 200:** `{ "items": [ { ...clan, "memberCount": N } ] }` (small set; no
+paging yet). **Auth:** any authenticated user.
+
+### `GET /rest/clans/{id}` — detail
+
+**Response 200:** the Clan + `memberCount`. `404` `NOT_FOUND` if missing.
+**Auth:** any authenticated user.
+
+### `POST /rest/clans/{id}/join` — join
+
+Sets the caller's `clanId` to this clan (switching from any current clan).
+Idempotent (joining the same clan twice is a no-op success).
+
+**Response 200:** the joined Clan (with updated `memberCount`). `404` `NOT_FOUND`
+if the clan doesn't exist. **Auth:** any authenticated user.
+
+### `POST /rest/clans/leave` — leave
+
+Clears the caller's `clanId`. Idempotent (leaving when not in a clan → `204`).
+
+**Response 204:** no body. **Auth:** any authenticated user.
+
+---
+
+## 3.7 Sprint 3 endpoints — Runs
+
+Runs are the activity log behind the Last-run, Profile-stats, and (later) Feed
+screens. Per **D-4**, clients post a *finished* run summary plus per-km splits —
+the backend stores and aggregates; there is no server-side GPS. All endpoints
+require a valid access token.
+
+### The Run resource
+
+```json
+{
+  "id": "r_1a2b...",
+  "userId": "u_8f2c...",
+  "title": "Morning shakeout along the Tagus",
+  "location": "Belém, Lisboa",
+  "distanceMeters": 8400,
+  "durationSeconds": 2301,
+  "elevationMeters": 22,
+  "routeType": "river",
+  "startedAt": "2026-06-03T07:42:00Z",
+  "createdAt": "2026-06-03T08:25:00Z",
+  "splits": [ { "km": 1, "durationSeconds": 298 }, { "km": 2, "durationSeconds": 292 } ]
+}
+```
+
+- `userId` — the owner, set server-side from the JWT (never from the body).
+- Distances/durations are integers (metres, seconds) — the source of truth;
+  clients derive km and pace (`durationSeconds ÷ km`) for display.
+- `routeType` — cosmetic label for the route sketch (`river|trail|park|coast|city`);
+  free-form, defaults to `river`.
+- `splits` — optional per-km entries; `durationSeconds` is the time for that km.
+
+### `POST /rest/runs` — log a run
+
+**Request:** `distanceMeters` (required, > 0), `durationSeconds` (required, > 0),
+`startedAt` (required ISO-8601); `title`, `location`, `elevationMeters` (≥ 0),
+`routeType`, `splits` (optional).
+
+**Response 201** (`Location: /rest/runs/{id}`): the created Run.
+**Errors:** `400` `VALIDATION_ERROR`. **Auth:** any authenticated user.
+
+### `GET /rest/runs` — list
+
+**Query params:** `scope` = `me` (default; the caller's runs) or `clan` (runs by
+members of the caller's clan); `limit` (default 50, max 100). Results are newest
+first (sorted by `startedAt` descending). Pagination is deferred (small scale).
+
+**Response 200:** `{ "items": [ { ...run } ] }`. **Auth:** any authenticated user.
+(`scope=clan` with no clan returns just the caller's own runs.)
+
+### `GET /rest/runs/{id}` — detail
+
+**Response 200:** the Run (with splits). `404` `NOT_FOUND` if missing.
+**Auth:** any authenticated user.
+
+### `GET /rest/runs/me/last` — most recent run
+
+The caller's latest run by `startedAt`. **Response 200:** the Run.
+`404` `NOT_FOUND` if the caller has logged no runs. **Auth:** any authenticated user.
+
+### `GET /rest/users/me/stats` — derived running stats
+
+Computed on the fly from the caller's runs (UTC day boundaries).
+
+**Response 200:**
+
+```json
+{
+  "weeklyKm": [6.2, 0, 8.4, 5.1, 12.0, 4.5, 10.3],
+  "monthKm": 142.6,
+  "monthRuns": 18,
+  "avgPaceSecPerKm": 288,
+  "streak": 9
+}
+```
+
+- `weeklyKm` — km per day for the current week, Monday→Sunday (index 0 = Monday).
+- `monthKm` / `monthRuns` — totals for the current calendar month.
+- `avgPaceSecPerKm` — all-time average pace in seconds per km, or `null` if no runs.
+- `streak` — consecutive days with ≥ 1 run, ending today or yesterday.
+
+**Auth:** any authenticated user.
+
+---
+
+## 3.8 Sprint 3 endpoints — Volunteer events
+
+Per **D-6**, the prototype's "volunteer event" is the existing **Activity**
+extended with optional volunteer attributes plus a **role** on participation —
+not a separate kind. Plain activities are unaffected (the new fields default,
+and `eventKind` defaults to `RUN`). No new top-level routes; the existing
+`/activities` create/list/detail and `/activities/{id}/participants` endpoints
+gain fields and behaviour.
+
+### Activity — added (optional) fields
+
+```json
+{
+  "...": "(all existing fields)",
+  "eventKind": "VOLUNTEER",        // RUN (default) | VOLUNTEER
+  "host": "Forest Runners",         // organising entity name (free text)
+  "distanceKm": 7.0,
+  "verifiedBy": "PEER",             // PEER (default) | PARTNER  — a badge, not per-user attendance
+  "staffCapacity": 5,               // staff spots (participant spots = existing `capacity`)
+  "pointsParticipant": 100,
+  "pointsStaff": 110,
+  "tags": ["river", "easy"]
+}
+```
+
+On **read** (`GET /activities` and `GET /activities/{id}`) the response also
+carries derived, non-sensitive counts (it never lists participant identities):
+
+```json
+{ "...": "(activity fields)",
+  "participantsJoined": 14, "staffJoined": 4,
+  "userRole": "PARTICIPANT" }   // the caller's role on this activity, or null
+```
+
+`POST`/`PUT /activities` accept the added fields (all optional; defaults as
+above). `eventKind`/`verifiedBy` are validated against their enums; numeric
+fields must be ≥ 0. Auth/ownership rules are unchanged.
+
+### Participation — role
+
+A `Participation` now carries a `role`: `PARTICIPANT` (default) or `STAFF`.
+
+### `POST /rest/activities/{id}/participants?role=participant|staff`
+
+`role` query param (default `participant`). Existing checks (`ACTIVITY_NOT_OPEN`,
+`ACTIVITY_STARTED`, `ALREADY_JOINED`) still apply. Capacity is now per role:
+participants against `capacity`, staff against `staffCapacity`.
+
+**Response 201:** `{ "activityId", "userId", "joinedAt", "role" }`.
+
+**Added error codes:**
+
+| Status | Code | Meaning |
+|--------|------|---------|
+| `409` | `STAFF_FULL` | Staff spots are full |
+| `409` | `NOT_A_VOLUNTEER_EVENT` | `role=staff` on a non-volunteer event (or one with no staff spots) |
+| `403` | `NOT_STAFF_ELIGIBLE` | Caller hasn't joined ≥ 3 volunteer events yet |
+| `409` | `ACTIVITY_FULL` | Participant spots full (existing code, now role-scoped) |
+
+The roster (`GET /activities/{id}/participants`, owner-only) now includes each
+participant's `role`.
+
+### `GET /rest/users/me` — added fields
+
+Profile now also reports volunteer standing:
+
+```json
+{ "...": "(profile fields)", "volunteerEvents": 4, "staffEligible": true }
+```
+
+- `volunteerEvents` — number of `VOLUNTEER`-kind activities the caller has joined.
+- `staffEligible` — `true` once `volunteerEvents ≥ 3` (the threshold to join as staff).
+
+> **Deferred:** actual attendance verification and volunteer-**points**
+> accumulation to users/clans are not in this phase — events advertise points and
+> a `verifiedBy` badge, but points aren't yet credited. That lands with the Feed /
+> ranking work (Phase 4–5). Roster avatar *previews* (named) remain owner-only for
+> privacy; cards show counts only.
+
+---
+
+## 3.9 Sprint 3 endpoints — Feed + kudos
+
+The activity feed aggregates recent **runs** and **volunteer-event joins** into a
+single, newest-first timeline, with denormalised author info. Plus **minimal
+kudos** (like/unlike + count) per **D-5** — comments are deferred.
+
+### `GET /rest/feed`
+
+**Query params:** `scope` = `all` (default; everyone) or `clan` (members of the
+caller's clan only; falls back to the caller alone if they're in no clan);
+`limit` (default 30, max 100).
+
+**Response 200:** `{ "items": [ FeedItem, … ] }`, newest first by `when`.
+
+A **FeedItem** is one of two shapes sharing a common head:
+
+```jsonc
+{
+  "id": "r_…",                 // run id, or "{activityId}:{userId}" for a volunteer join
+  "type": "run",               // "run" | "volunteer"
+  "when": "2026-06-03T07:42:00Z",
+  "author": { "userId": "u_…", "name": "Ana Costa", "clanName": "Forest Runners", "color": "#00B86B" },
+  "title": "Morning shakeout",
+  "location": "Belém",
+  "kudosCount": 3,
+  "likedByMe": false,
+  "commentCount": 0,           // always 0 for now (comments deferred)
+
+  // type=run only:
+  "distanceKm": 8.4, "durationSeconds": 2301, "paceSecPerKm": 274,
+  "elevationMeters": 22, "routeType": "river",
+
+  // type=volunteer only:
+  "role": "PARTICIPANT", "pointsEarned": 100, "verifiedBy": "PARTNER", "distanceKm": 7.0
+}
+```
+
+`author.color` is the author's clan colour, or their deterministic avatar colour
+if they're in no clan (matches `GET /users/me` `avatarColor`). **Auth:** any
+authenticated user.
+
+> Aggregation is computed per request (no stored timeline) and sorted in memory —
+> fine at this scale. Volunteer **points** shown as `pointsEarned` are the event's
+> advertised value; they are still not credited to user/clan totals (deferred).
+
+### `POST /rest/feed/{itemId}/kudos` — like
+
+Idempotent (liking twice is a no-op). **Response 200:**
+`{ "itemId": "…", "kudosCount": 4, "likedByMe": true }`. **Auth:** any authenticated user.
+
+### `DELETE /rest/feed/{itemId}/kudos` — unlike
+
+Idempotent (unliking when not liked still succeeds). **Response 204.**
+**Auth:** any authenticated user.
+
+> Kudos are stored as their own kind keyed `{itemId}:{userId}` (one like per user
+> per item). `itemId` is opaque to the client — pass back exactly what the feed
+> item carried. Comments are **deferred** (D-5).
+
+---
+
+## 3.10 Sprint 3 endpoints — Clan ranking
+
+The clan leaderboard, computed on the fly from clan membership + member runs +
+member volunteer joins. Closes out the prototype's screens.
+
+### `GET /rest/clans/ranking`
+
+**Query params:** `metric` = `avgPace` (default) | `distance` | `consistency` |
+`impact`; `period` = `all` (default) | `month` | `week` (affects the distance
+metric's value/sort).
+
+**Response 200:**
+
+```json
+{
+  "metric": "avgPace",
+  "period": "all",
+  "updatedAt": "2026-06-03T15:00:00Z",
+  "clans": [
+    {
+      "rank": 1, "id": "c_…", "name": "Forest Runners", "tag": "FOR", "color": "#00B86B",
+      "members": 12,
+      "totalKm": 3247.4, "monthlyKm": 1420.5, "weeklyKm": 412.0,
+      "avgPaceSecPerKm": 282,
+      "consistencyPct": 95,
+      "volunteerPoints": 8620, "volunteerEvents": 86,
+      "trend": "flat"
+    }
+  ]
+}
+```
+
+- **avgPace** — total member run duration ÷ total distance (all-time); `null` if
+  no runs. Sorted ascending (faster = better).
+- **distance** — `weeklyKm` / `monthlyKm` / `totalKm` per `period`; sorted descending.
+- **consistency** — `consistencyPct` = share of members with ≥ 1 run this week;
+  sorted descending.
+- **impact** — `volunteerPoints` = sum over members' volunteer joins of the event's
+  participant/staff points; sorted descending.
+- `trend` is always `"flat"` for now — historical snapshots aren't stored yet
+  (deferred), so week-over-week movement can't be computed.
+
+**Auth:** any authenticated user.
+
+> Like the feed, this scans members' runs/participations per request (no stored
+> rollup) and ranks in memory — fine at this scale; revisit with periodic
+> aggregation if clan/run counts grow. Volunteer points here are computed for the
+> leaderboard but still not credited to per-user totals.
+
+---
+
 ## 4. Things deliberately deferred
 
 These are real concerns but out of scope for Sprint 1. Don't let them block IAM:
@@ -497,3 +873,8 @@ Things this draft picked a side on. If the team disagrees, change the doc:
 2. **Refresh token rotation.** The draft wanted yes — each refresh call returns a *new* refresh token, which lets us detect a stolen refresh token (if the old one is used again after rotation, both sessions are invalidated). **Shipped: NOT yet** — `/auth/refresh` returns only a new access token and the refresh token is reused until expiry/logout (see §2). Rotation remains the planned hardening step; the clients are already single-flight-safe for it.
 3. **Password rules.** The brief says "strong password requirements." The draft proposed 12 chars + complexity. **Shipped: minimum 8 characters, no complexity rules** (see §3 register). **Decision (D-2, 2026-06-01): keep 8 chars for now** — revisit as a standalone hardening ticket; not blocking Sprint 2.
 4. **Role assignment.** **Decision (D-1, 2026-06-01): self-select at registration with backoffice verification.** A user picks `ACTIVITY_MANAGER`/`PARTNER` at register; the account is created **unverified** and can't act until a backoffice clears it via `POST /rest/users/{id}/verify`. `BACKOFFICE`/`SYSADMIN` are never self-registerable. The first privileged account is seeded via the `BOOTSTRAP_ADMIN_EMAIL` env var (see §3 register). Implemented in Sprint 2 — see §3.5 and `docs/sprint-2-backlog.md`.
+
+5. **Clan membership model (D-3, 2026-06-03).** A user belongs to **at most one clan**, stored as a nullable `clanId` on the user (not a separate membership entity). Any authenticated user may create or join a clan; joining switches clans; leaving clears it. Clan name/tag uniqueness is **not** enforced yet. Implemented in Sprint 3 Phase 1 — see §3.6 and `docs/sprint-3-backlog.md`.
+6. **Run ingestion (D-4, 2026-06-03).** Clients post a *finished* run summary (distance, duration, pace, elevation, route type) plus per-km splits; there is **no server-side GPS ingestion**. Live tracking is a client concern (the Flutter app). Sprint 3 Phase 2.
+7. **Social features (D-5, 2026-06-03).** The feed ships with **minimal kudos** (like/unlike + count). **Comments, achievements, and goal-progress are deferred** — the prototype shows them, but they are out of scope until a later sprint. Sprint 3 Phase 4.
+8. **Volunteer events (D-6, 2026-06-03).** The prototype's richer "volunteer event" is modelled by **extending the existing `Activity`** (optional `eventKind`, staff capacity, points, `verifiedBy`, tags) plus a `role` (STAFF/PARTICIPANT) on `Participation` — not a separate kind. Sprint 3 Phase 3.

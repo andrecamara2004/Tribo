@@ -20,6 +20,8 @@ const ICONS: Record<string, ReactNode> = {
   users:   <><circle cx="9" cy="8" r="3.5" /><path d="M3 21a6 6 0 0 1 12 0" /><path d="M16 5.5a3.5 3.5 0 0 1 0 6.8M21 21a6 6 0 0 0-5-5.9" /></>,
   calendar:<><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
   back:    <><path d="M19 12H5M12 19l-7-7 7-7" /></>,
+  heart:   <><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z" /></>,
+  comment: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
 };
 
 export const Icon = ({

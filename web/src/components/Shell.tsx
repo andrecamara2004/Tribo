@@ -17,11 +17,11 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { id: "feed", label: "Feed", icon: "home" },
-  { id: "track", label: "Last run", icon: "run" },
-  { id: "ranking", label: "Clan ranking", icon: "trophy" },
+  { id: "feed", label: "Feed", icon: "home", path: "/feed" },
+  { id: "track", label: "Last run", icon: "run", path: "/track" },
+  { id: "ranking", label: "Clan ranking", icon: "trophy", path: "/ranking" },
   { id: "activities", label: "Volunteer", icon: "leaf", path: "/activities" },
-  { id: "profile", label: "Profile", icon: "user" },
+  { id: "profile", label: "Profile", icon: "user", path: "/profile" },
 ];
 
 /** ACTIVITY_MANAGER → "Activity Manager" */
@@ -34,7 +34,7 @@ function humanizeRole(role: string): string {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -44,6 +44,10 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   const roleLabel = user ? humanizeRole(user.role) : "";
+  // Prefer the real profile name/clan; fall back to the role while it loads.
+  const displayName = profile?.fullName || roleLabel || "Signed in";
+  const subtitle = profile?.clan?.name
+    ?? (user?.verified === false ? "Pending verification" : roleLabel || "Signed in");
 
   return (
     <div className="shell">
@@ -87,10 +91,10 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
 
         <div className="sidebar-bottom">
-          <Avatar name={roleLabel || "Tribo"} size="sm" />
+          <Avatar name={displayName} color={profile?.avatarColor} size="sm" />
           <div className="who">
-            <strong>{roleLabel || "Signed in"}</strong>
-            <small>{user?.verified === false ? "Pending verification" : "Signed in"}</small>
+            <strong>{displayName}</strong>
+            <small>{subtitle}</small>
           </div>
         </div>
       </aside>

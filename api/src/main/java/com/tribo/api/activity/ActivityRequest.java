@@ -8,6 +8,8 @@ package com.tribo.api.activity;
  * in the resource. `ownerId`, `status`, and timestamps are NEVER taken from the
  * client — they're server-controlled.
  */
+import java.util.List;
+
 public class ActivityRequest {
     public String title;
     public String description;
@@ -16,4 +18,14 @@ public class ActivityRequest {
     public String startsAt;   // ISO-8601 instant
     public String endsAt;     // ISO-8601 instant
     public Integer capacity;  // boxed so missing → null → 400 (not silently 0)
+
+    // --- volunteer-event extensions (D-6); all optional -----------------------
+    public String eventKind;          // RUN (default) | VOLUNTEER
+    public String host;
+    public Double distanceKm;
+    public String verifiedBy;         // PEER (default) | PARTNER
+    public Integer staffCapacity;
+    public Integer pointsParticipant;
+    public Integer pointsStaff;
+    public List<String> tags;
 }

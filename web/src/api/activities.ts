@@ -7,6 +7,9 @@
 import { apiFetch } from "./http";
 
 export type ActivityStatus = "DRAFT" | "PUBLISHED" | "CANCELLED";
+export type EventKind = "RUN" | "VOLUNTEER";
+export type VerifiedBy = "PEER" | "PARTNER";
+export type ParticipationRole = "PARTICIPANT" | "STAFF";
 
 export interface Activity {
   id: string;
@@ -21,6 +24,21 @@ export interface Activity {
   status: ActivityStatus;
   createdAt: string;
   updatedAt: string;
+
+  // volunteer-event extensions (D-6)
+  eventKind: EventKind;
+  host: string;
+  distanceKm: number;
+  verifiedBy: VerifiedBy;
+  staffCapacity: number;
+  pointsParticipant: number;
+  pointsStaff: number;
+  tags: string[];
+
+  // derived — present only on read views (GET list / detail), not on create/edit
+  participantsJoined?: number;
+  staffJoined?: number;
+  userRole?: ParticipationRole | null;
 }
 
 /** Body for create + edit. Server ignores any id/owner/status sent. */
@@ -32,6 +50,15 @@ export interface ActivityInput {
   startsAt: string; // ISO-8601
   endsAt: string; // ISO-8601
   capacity: number;
+  // volunteer-event extensions (optional)
+  eventKind?: EventKind;
+  host?: string;
+  distanceKm?: number;
+  verifiedBy?: VerifiedBy;
+  staffCapacity?: number;
+  pointsParticipant?: number;
+  pointsStaff?: number;
+  tags?: string[];
 }
 
 export interface ActivityPage {
@@ -42,6 +69,7 @@ export interface ActivityPage {
 export interface Participant {
   userId: string;
   joinedAt: string;
+  role?: ParticipationRole;
 }
 
 export interface Roster {
@@ -99,9 +127,9 @@ export async function cancelActivity(id: string): Promise<Activity> {
   return a;
 }
 
-/** POST /activities/{id}/participants — the caller joins. */
-export async function joinActivity(id: string): Promise<void> {
-  await apiFetch(`/activities/${id}/participants`, { method: "POST" });
+/** POST /activities/{id}/participants — the caller joins in the given role. */
+export async function joinActivity(id: string, role: "participant" | "staff" = "participant"): Promise<void> {
+  await apiFetch(`/activities/${id}/participants?role=${role}`, { method: "POST" });
 }
 
 /** DELETE /activities/{id}/participants/me — the caller withdraws (idempotent). */

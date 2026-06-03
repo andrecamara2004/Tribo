@@ -125,7 +125,8 @@ public class AuthResource {
                 User.ProfileVisibility.PUBLIC,
                 Instant.now(),
                 false,
-                verified
+                verified,
+                null            // new users start without a clan (D-3)
         );
         USERS.save(user);
 

@@ -19,9 +19,12 @@ import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
 
 const PRIVILEGED = ["BACKOFFICE", "SYSADMIN"];
 
+const JOINED = { background: "var(--green-50)", color: "var(--green-700)", border: "1px solid var(--green-200)" } as const;
+const LOCKED = { background: "#FFF6DB", color: "#8C6D04", border: "1px solid #FBE8A6" } as const;
+
 export function ActivityDetailPage() {
   const { id = "" } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -61,6 +64,7 @@ export function ActivityDetailPage() {
     try {
       await fn();
       setNotice(ok);
+      setActivity(await getActivity(id)); // refresh counts + the caller's role
       if (isOwner) setRoster(await getRoster(id)); // refresh roster after changes
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed.");
@@ -94,6 +98,16 @@ export function ActivityDetailPage() {
   const past = started;
   const joinable = activity.status === "PUBLISHED" && !past;
 
+  const isVol = activity.eventKind === "VOLUNTEER";
+  const myRole = activity.userRole ?? null;
+  const pJoined = activity.participantsJoined ?? 0;
+  const sJoined = activity.staffJoined ?? 0;
+  const partFull = pJoined >= activity.capacity;
+  const staffFull = sJoined >= activity.staffCapacity;
+  const staffEligible = profile?.staffEligible ?? false;
+  const eventsToGo = Math.max(0, 3 - (profile?.volunteerEvents ?? 0));
+  const verifiedLabel = activity.verifiedBy === "PARTNER" ? "🏛️ Partner-verified" : "👥 Peer-verified";
+
   return (
     <Shell>
       <div className="page-narrow">
@@ -118,7 +132,23 @@ export function ActivityDetailPage() {
             <dt>Category</dt>
             <dd>{activity.category || "—"}</dd>
             <dt>Capacity</dt>
-            <dd>{activity.capacity} spots</dd>
+            <dd>{activity.capacity} participant spots{isVol ? ` · ${activity.staffCapacity} staff` : ""}</dd>
+            {isVol && (
+              <>
+                <dt>Hosted by</dt>
+                <dd>{activity.host || "—"}</dd>
+                <dt>Distance</dt>
+                <dd>{activity.distanceKm ? `${activity.distanceKm} km` : "—"}</dd>
+                <dt>Verification</dt>
+                <dd>{verifiedLabel}</dd>
+                {activity.tags.length > 0 && (
+                  <>
+                    <dt>Tags</dt>
+                    <dd className="vol-tags">{activity.tags.map((t) => <span key={t} className="pill gray">{t}</span>)}</dd>
+                  </>
+                )}
+              </>
+            )}
             <dt>Description</dt>
             <dd>{activity.description || "—"}</dd>
           </dl>
@@ -127,35 +157,82 @@ export function ActivityDetailPage() {
         {notice && <p className="form-notice" style={{ marginTop: 16 }}>{notice}</p>}
         {error && <p className="form-error" style={{ marginTop: 16 }}>{error}</p>}
 
-        <div className="action-row">
-          <button
-            className="btn btn-primary"
-            disabled={busy || !joinable}
-            onClick={() => act(() => joinActivity(id), "You're registered for this activity.")}
-          >
-            Join
-          </button>
-          <button
-            className="btn btn-secondary"
-            disabled={busy}
-            onClick={() => act(() => withdrawFromActivity(id), "You've withdrawn from this activity.")}
-          >
-            Withdraw
-          </button>
-
-          {isOwner && (
-            <>
-              <button className="btn btn-secondary" disabled={busy} onClick={() => navigate(`/activities/${id}/edit`)}>
-                Edit
-              </button>
-              {activity.status !== "CANCELLED" && (
-                <button className="btn btn-danger" disabled={busy} onClick={onCancel}>
-                  Cancel activity
+        {isVol ? (
+          <div style={{ display: "grid", gap: 12, marginTop: 4 }}>
+            {/* Participants */}
+            <div className="card">
+              <div className="card-title">
+                <h3>Participants <span style={{ color: "var(--muted)", fontWeight: 500 }}>· +{activity.pointsParticipant} pts</span></h3>
+                <span className="pill gray">{pJoined}/{activity.capacity}</span>
+              </div>
+              {myRole === "PARTICIPANT" ? (
+                <button className="btn btn-block" disabled style={JOINED}>✓ You're a participant</button>
+              ) : partFull ? (
+                <button className="btn btn-secondary btn-block" disabled>Event full</button>
+              ) : (
+                <button className="btn btn-primary btn-block" disabled={busy || !joinable || myRole !== null}
+                  onClick={() => act(() => joinActivity(id, "participant"), "You joined as a participant.")}>
+                  Join as participant
                 </button>
               )}
-            </>
-          )}
-        </div>
+            </div>
+
+            {/* Staff */}
+            {activity.staffCapacity > 0 && (
+              <div className="card">
+                <div className="card-title">
+                  <h3>Staff <span style={{ color: "var(--muted)", fontWeight: 500 }}>· +{activity.pointsStaff} pts</span></h3>
+                  <span className="pill gray">{sJoined}/{activity.staffCapacity}</span>
+                </div>
+                {myRole === "STAFF" ? (
+                  <button className="btn btn-block" disabled style={JOINED}>✓ You're staff</button>
+                ) : staffFull ? (
+                  <button className="btn btn-secondary btn-block" disabled>Staff full</button>
+                ) : !staffEligible ? (
+                  <button className="btn btn-block" disabled style={LOCKED}>
+                    Need {eventsToGo} more event{eventsToGo === 1 ? "" : "s"} to staff
+                  </button>
+                ) : (
+                  <button className="btn btn-secondary btn-block" disabled={busy || !joinable || myRole !== null}
+                    onClick={() => act(() => joinActivity(id, "staff"), "You joined as staff.")}>
+                    Join as staff
+                  </button>
+                )}
+              </div>
+            )}
+
+            {myRole !== null && (
+              <button className="btn btn-secondary" style={{ width: "auto", justifySelf: "start" }} disabled={busy}
+                onClick={() => act(() => withdrawFromActivity(id), "You've withdrawn from this event.")}>
+                Withdraw
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="action-row">
+            <button className="btn btn-primary" disabled={busy || !joinable || myRole !== null}
+              onClick={() => act(() => joinActivity(id), "You're registered for this activity.")}>
+              {myRole ? "Joined" : "Join"}
+            </button>
+            <button className="btn btn-secondary" disabled={busy || myRole === null}
+              onClick={() => act(() => withdrawFromActivity(id), "You've withdrawn from this activity.")}>
+              Withdraw
+            </button>
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="action-row">
+            <button className="btn btn-secondary" disabled={busy} onClick={() => navigate(`/activities/${id}/edit`)}>
+              Edit
+            </button>
+            {activity.status !== "CANCELLED" && (
+              <button className="btn btn-danger" disabled={busy} onClick={onCancel}>
+                Cancel activity
+              </button>
+            )}
+          </div>
+        )}
 
         {isOwner && roster && (
           <div className="card" style={{ marginTop: 24 }}>
@@ -171,6 +248,7 @@ export function ActivityDetailPage() {
                   <li key={p.userId}>
                     <Avatar name={p.userId.slice(0, 2)} size="sm" />
                     <code>{p.userId}</code>
+                    {p.role === "STAFF" && <span className="pill gold">staff</span>}
                     <small>{formatWhen(p.joinedAt)}</small>
                   </li>
                 ))}

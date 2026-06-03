@@ -38,6 +38,7 @@ public class ParticipationRepository {
                 .set("activityId", p.activityId())
                 .set("userId", p.userId())
                 .set("joinedAt", p.joinedAt().toString())
+                .set("role", p.role().name())
                 .build();
         DATASTORE.put(entity);
     }
@@ -65,7 +66,7 @@ public class ParticipationRepository {
         return out;
     }
 
-    /** Current participant count for capacity checks. */
+    /** Current participant count for capacity checks (all roles). */
     public int countByActivity(String activityId) {
         // Key-only query keeps the count cheap (no property reads).
         Query<Key> q = Query.newKeyQueryBuilder()
@@ -81,11 +82,59 @@ public class ParticipationRepository {
         return n;
     }
 
+    /** Count of participants in a given role (for per-role capacity). */
+    public int countByActivityAndRole(String activityId, ParticipationRole role) {
+        int n = 0;
+        for (Participation p : findByActivity(activityId)) {
+            if (p.role() == role) n++;
+        }
+        return n;
+    }
+
+    /** The caller's role on an activity, if they've joined. */
+    public java.util.Optional<ParticipationRole> findRole(String activityId, String userId) {
+        Entity e = DATASTORE.get(KEY_FACTORY.newKey(Participation.keyOf(activityId, userId)));
+        return e == null ? java.util.Optional.empty()
+                : java.util.Optional.of(roleOf(e));
+    }
+
+    /** All participations across activities (for the global feed). */
+    public List<Participation> listAll() {
+        Query<Entity> q = Query.newEntityQueryBuilder().setKind(KIND).build();
+        QueryResults<Entity> results = DATASTORE.run(q);
+        List<Participation> out = new ArrayList<>();
+        while (results.hasNext()) {
+            out.add(toParticipation(results.next()));
+        }
+        return out;
+    }
+
+    /** All of a user's participations (e.g. to count volunteer events). */
+    public List<Participation> findByUser(String userId) {
+        Query<Entity> q = Query.newEntityQueryBuilder()
+                .setKind(KIND)
+                .setFilter(PropertyFilter.eq("userId", userId))
+                .build();
+        QueryResults<Entity> results = DATASTORE.run(q);
+        List<Participation> out = new ArrayList<>();
+        while (results.hasNext()) {
+            out.add(toParticipation(results.next()));
+        }
+        return out;
+    }
+
+    private static ParticipationRole roleOf(Entity e) {
+        // Legacy participations (pre-D-6) have no role → PARTICIPANT.
+        return e.contains("role") ? ParticipationRole.valueOf(e.getString("role"))
+                : ParticipationRole.PARTICIPANT;
+    }
+
     private Participation toParticipation(Entity e) {
         return new Participation(
                 e.getString("activityId"),
                 e.getString("userId"),
-                Instant.parse(e.getString("joinedAt"))
+                Instant.parse(e.getString("joinedAt")),
+                roleOf(e)
         );
     }
 }

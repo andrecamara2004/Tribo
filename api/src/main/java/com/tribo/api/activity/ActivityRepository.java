@@ -38,7 +38,7 @@ public class ActivityRepository {
     /** Persist an activity. Overwrites any existing entity with the same id. */
     public void save(Activity a) {
         Key key = KEY_FACTORY.newKey(a.id());
-        Entity entity = Entity.newBuilder(key)
+        Entity.Builder entity = Entity.newBuilder(key)
                 .set("ownerId", a.ownerId())
                 .set("title", a.title())
                 .set("description", a.description())
@@ -50,8 +50,22 @@ public class ActivityRepository {
                 .set("status", a.status().name())
                 .set("createdAt", a.createdAt().toString())
                 .set("updatedAt", a.updatedAt().toString())
-                .build();
-        DATASTORE.put(entity);
+                // volunteer-event extensions (D-6)
+                .set("eventKind", a.eventKind().name())
+                .set("host", a.host())
+                .set("distanceKm", a.distanceKm())
+                .set("verifiedBy", a.verifiedBy().name())
+                .set("staffCapacity", a.staffCapacity())
+                .set("pointsParticipant", a.pointsParticipant())
+                .set("pointsStaff", a.pointsStaff());
+
+        List<com.google.cloud.datastore.Value<?>> tagValues = new ArrayList<>();
+        for (String t : a.tags()) {
+            tagValues.add(com.google.cloud.datastore.StringValue.of(t));
+        }
+        entity.set("tags", tagValues);
+
+        DATASTORE.put(entity.build());
     }
 
     public Optional<Activity> findById(String id) {
@@ -101,6 +115,14 @@ public class ActivityRepository {
     // --- internal mapping ----------------------------------------------------
 
     private Activity toActivity(Entity e) {
+        // Volunteer fields are legacy-tolerant: entities created before D-6
+        // simply don't have them, so we fall back to plain-RUN defaults.
+        List<String> tags = new ArrayList<>();
+        if (e.contains("tags")) {
+            for (com.google.cloud.datastore.Value<?> v : e.getList("tags")) {
+                tags.add((String) v.get());
+            }
+        }
         return new Activity(
                 e.getKey().getName(),
                 e.getString("ownerId"),
@@ -113,7 +135,15 @@ public class ActivityRepository {
                 (int) e.getLong("capacity"),
                 ActivityStatus.valueOf(e.getString("status")),
                 Instant.parse(e.getString("createdAt")),
-                Instant.parse(e.getString("updatedAt"))
+                Instant.parse(e.getString("updatedAt")),
+                e.contains("eventKind") ? EventKind.valueOf(e.getString("eventKind")) : EventKind.RUN,
+                e.contains("host") ? e.getString("host") : "",
+                e.contains("distanceKm") ? e.getDouble("distanceKm") : 0.0,
+                e.contains("verifiedBy") ? VerifiedBy.valueOf(e.getString("verifiedBy")) : VerifiedBy.PEER,
+                e.contains("staffCapacity") ? (int) e.getLong("staffCapacity") : 0,
+                e.contains("pointsParticipant") ? (int) e.getLong("pointsParticipant") : 0,
+                e.contains("pointsStaff") ? (int) e.getLong("pointsStaff") : 0,
+                tags
         );
     }
 }

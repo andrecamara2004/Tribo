@@ -29,7 +29,8 @@ public record User(
         ProfileVisibility profileVisibility,
         Instant createdAt,
         boolean suspended,          // backoffice can flip this; login should reject if true
-        boolean verified            // privileged self-registered roles start false; backoffice verifies (D-1)
+        boolean verified,           // privileged self-registered roles start false; backoffice verifies (D-1)
+        String clanId               // the clan the user belongs to, or null if none (D-3)
 ) {
     public enum ProfileVisibility {
         PUBLIC,
