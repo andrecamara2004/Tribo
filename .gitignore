@@ -9,6 +9,10 @@ node_modules/
 .env.local
 *-service-account.json
 
+# Python (validation scripts)
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db

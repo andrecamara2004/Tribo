@@ -1,6 +1,7 @@
 package com.tribo.api.activity;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Domain model for an activity (the core Sprint 2 resource).
@@ -29,6 +30,15 @@ public record Activity(
         int capacity,
         ActivityStatus status,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        // --- volunteer-event extensions (D-6); defaults make a plain RUN ------
+        EventKind eventKind,        // RUN (default) | VOLUNTEER
+        String host,                // organising entity name (free text)
+        double distanceKm,
+        VerifiedBy verifiedBy,      // PEER (default) | PARTNER — a display badge
+        int staffCapacity,          // staff spots (participant spots = capacity)
+        int pointsParticipant,
+        int pointsStaff,
+        List<String> tags
 ) {
 }

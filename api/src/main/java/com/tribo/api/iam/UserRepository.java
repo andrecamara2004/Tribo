@@ -50,7 +50,7 @@ public class UserRepository {
     public void save(User user) {
         Key key = KEY_FACTORY.newKey(user.id());
 
-        Entity entity = Entity.newBuilder(key)
+        Entity.Builder entity = Entity.newBuilder(key)
                 .set("email", user.email().toLowerCase())
                 .set("passwordHash", user.passwordHash())
                 .set("fullName", user.fullName())
@@ -60,10 +60,15 @@ public class UserRepository {
                 .set("profileVisibility", user.profileVisibility().name())
                 .set("createdAt", user.createdAt().toString())
                 .set("suspended", user.suspended())
-                .set("verified", user.verified())
-                .build();
+                .set("verified", user.verified());
 
-        DATASTORE.put(entity);
+        // clanId is optional (D-3): only write the property when the user is in
+        // a clan, so "no clan" is simply the absence of the property.
+        if (user.clanId() != null) {
+            entity.set("clanId", user.clanId());
+        }
+
+        DATASTORE.put(entity.build());
     }
 
     /**
@@ -119,7 +124,10 @@ public class UserRepository {
                 e.getBoolean("suspended"),
                 // Legacy entities (created before the verified flag) default to
                 // verified=true: they're END_USERs and were already able to act.
-                !e.contains("verified") || e.getBoolean("verified")
+                !e.contains("verified") || e.getBoolean("verified"),
+                // clanId is optional and absent for users not in a clan (and for
+                // legacy entities created before D-3).
+                e.contains("clanId") ? e.getString("clanId") : null
         );
     }
 
@@ -135,8 +143,55 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), true);
+                u.suspended(), true, u.clanId());
         save(updated);
         return Optional.of(updated);
+    }
+
+    /**
+     * Sets (or clears) a user's clan membership (D-3). Pass {@code clanId == null}
+     * to leave the current clan. Returns the updated user, or empty if no such
+     * user. Idempotent: setting the clan the user is already in is a no-op.
+     */
+    public Optional<User> setClan(String userId, String clanId) {
+        Optional<User> found = findById(userId);
+        if (found.isEmpty()) return Optional.empty();
+        User u = found.get();
+        if (java.util.Objects.equals(u.clanId(), clanId)) return found;
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), clanId);
+        save(updated);
+        return Optional.of(updated);
+    }
+
+    /** Number of users in a clan (derived member count). Keys-only query. */
+    public long countByClan(String clanId) {
+        long count = 0;
+        QueryResults<Key> results = runKeyQueryByClan(clanId);
+        while (results.hasNext()) {
+            results.next();
+            count++;
+        }
+        return count;
+    }
+
+    /** Ids of users in a clan (e.g. to gather a clan's runs). Keys-only query. */
+    public java.util.List<String> findIdsByClan(String clanId) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        QueryResults<Key> results = runKeyQueryByClan(clanId);
+        while (results.hasNext()) {
+            ids.add(results.next().getName());
+        }
+        return ids;
+    }
+
+    private QueryResults<Key> runKeyQueryByClan(String clanId) {
+        Query<Key> q = Query.newKeyQueryBuilder()
+                .setKind(KIND)
+                .setFilter(PropertyFilter.eq("clanId", clanId))
+                .build();
+        return DATASTORE.run(q);
     }
 }

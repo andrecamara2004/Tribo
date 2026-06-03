@@ -5,6 +5,10 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { HomePage } from "./pages/HomePage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { TrackerPage } from "./pages/TrackerPage";
+import { FeedPage } from "./pages/FeedPage";
+import { RankingPage } from "./pages/RankingPage";
 import { ActivitiesPage } from "./pages/ActivitiesPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { ActivityFormPage } from "./pages/ActivityFormPage";
@@ -19,6 +23,10 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/track" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
+          <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+          <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
 
           <Route path="/activities" element={<ProtectedRoute><ActivitiesPage /></ProtectedRoute>} />
           <Route path="/activities/new" element={<ProtectedRoute roles={MANAGER_ROLES}><ActivityFormPage /></ProtectedRoute>} />

@@ -29,6 +29,10 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,6 +53,7 @@ import java.util.UUID;
 public class ActivityResource {
 
     private static final ActivityRepository ACTIVITIES = new ActivityRepository();
+    private static final ParticipationRepository PARTICIPANTS = new ParticipationRepository();
     private static final UserRepository USERS = new UserRepository();
 
     private static final int DEFAULT_LIMIT = 20;
@@ -74,7 +79,9 @@ public class ActivityResource {
                 v.title, v.description, v.category, v.location,
                 v.startsAt, v.endsAt, v.capacity,
                 ActivityStatus.PUBLISHED, // published on create so it's discoverable
-                now, now);
+                now, now,
+                v.eventKind, v.host, v.distanceKm, v.verifiedBy,
+                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags);
         ACTIVITIES.save(activity);
 
         return Response.created(URI.create("/rest/activities/" + id))
@@ -87,16 +94,24 @@ public class ActivityResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response list(
+            @Context ContainerRequestContext ctx,
             @QueryParam("status") @DefaultValue("PUBLISHED") String statusParam,
             @QueryParam("limit") @DefaultValue("20") int limitParam,
             @QueryParam("cursor") String cursor) {
 
+        AuthenticatedUser caller = authUser(ctx);
         ActivityStatus status = parseStatusFilter(statusParam);
         int limit = Math.max(1, Math.min(limitParam, MAX_LIMIT));
         if (limit == 0) limit = DEFAULT_LIMIT;
 
         ActivityPage page = ACTIVITIES.list(status, limit, cursor);
-        return Response.ok(page).build();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Activity a : page.items()) items.add(view(a, caller.userId()));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("items", items);
+        body.put("nextCursor", page.nextCursor());
+        return Response.ok(body).build();
     }
 
     // --- B2-7: detail --------------------------------------------------------
@@ -104,10 +119,11 @@ public class ActivityResource {
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response get(@PathParam("id") String id) {
+    public Response get(@Context ContainerRequestContext ctx, @PathParam("id") String id) {
+        AuthenticatedUser caller = authUser(ctx);
         Activity activity = ACTIVITIES.findById(id)
                 .orElseThrow(() -> new NotFoundException("No activity with id " + id + "."));
-        return Response.ok(activity).build();
+        return Response.ok(view(activity, caller.userId())).build();
     }
 
     // --- B2-4: edit (owner-only) --------------------------------------------
@@ -131,7 +147,9 @@ public class ActivityResource {
                 v.title, v.description, v.category, v.location,
                 v.startsAt, v.endsAt, v.capacity,
                 existing.status(),          // status changes go through /cancel, not PUT
-                existing.createdAt(), Instant.now());
+                existing.createdAt(), Instant.now(),
+                v.eventKind, v.host, v.distanceKm, v.verifiedBy,
+                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags);
         ACTIVITIES.save(updated);
         return Response.ok(updated).build();
     }
@@ -155,7 +173,10 @@ public class ActivityResource {
                 existing.id(), existing.ownerId(), existing.title(), existing.description(),
                 existing.category(), existing.location(), existing.startsAt(), existing.endsAt(),
                 existing.capacity(), ActivityStatus.CANCELLED,
-                existing.createdAt(), Instant.now());
+                existing.createdAt(), Instant.now(),
+                existing.eventKind(), existing.host(), existing.distanceKm(), existing.verifiedBy(),
+                existing.staffCapacity(), existing.pointsParticipant(), existing.pointsStaff(),
+                existing.tags());
         ACTIVITIES.save(cancelled);
         return Response.ok(cancelled).build();
     }
@@ -191,9 +212,11 @@ public class ActivityResource {
         }
     }
 
-    /** Parsed + validated activity fields. */
+    /** Parsed + validated activity fields (incl. volunteer extensions). */
     private record Validated(String title, String description, String category, String location,
-                             Instant startsAt, Instant endsAt, int capacity) {
+                             Instant startsAt, Instant endsAt, int capacity,
+                             EventKind eventKind, String host, double distanceKm, VerifiedBy verifiedBy,
+                             int staffCapacity, int pointsParticipant, int pointsStaff, List<String> tags) {
     }
 
     private static Validated validate(ActivityRequest req) {
@@ -223,7 +246,72 @@ public class ActivityResource {
         String description = req.description == null ? "" : req.description.trim();
         String category = req.category == null ? "" : req.category.trim();
         String location = req.location == null ? "" : req.location.trim();
-        return new Validated(title, description, category, location, startsAt, endsAt, req.capacity);
+
+        // --- volunteer-event extensions (all optional) ------------------------
+        EventKind eventKind = parseEnum(req.eventKind, EventKind.class, EventKind.RUN, "eventKind");
+        VerifiedBy verifiedBy = parseEnum(req.verifiedBy, VerifiedBy.class, VerifiedBy.PEER, "verifiedBy");
+        String host = req.host == null ? "" : req.host.trim();
+        double distanceKm = req.distanceKm == null ? 0.0 : req.distanceKm;
+        if (distanceKm < 0) throw new ValidationException("distanceKm cannot be negative.");
+        int staffCapacity = nonNegative(req.staffCapacity, "staffCapacity");
+        int pointsParticipant = nonNegative(req.pointsParticipant, "pointsParticipant");
+        int pointsStaff = nonNegative(req.pointsStaff, "pointsStaff");
+
+        List<String> tags = new ArrayList<>();
+        if (req.tags != null) {
+            for (String t : req.tags) {
+                if (t == null) continue;
+                String tag = t.trim().toLowerCase();
+                if (!tag.isEmpty()) tags.add(tag);
+            }
+        }
+
+        return new Validated(title, description, category, location, startsAt, endsAt, req.capacity,
+                eventKind, host, distanceKm, verifiedBy, staffCapacity, pointsParticipant, pointsStaff, tags);
+    }
+
+    private static <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback, String field) {
+        if (raw == null || raw.isBlank()) return fallback;
+        try {
+            return Enum.valueOf(type, raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown " + field + ": " + raw);
+        }
+    }
+
+    private static int nonNegative(Integer value, String field) {
+        if (value == null) return 0;
+        if (value < 0) throw new ValidationException(field + " cannot be negative.");
+        return value;
+    }
+
+    /** Activity fields + derived participation counts + the caller's role. */
+    private Map<String, Object> view(Activity a, String callerId) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", a.id());
+        m.put("ownerId", a.ownerId());
+        m.put("title", a.title());
+        m.put("description", a.description());
+        m.put("category", a.category());
+        m.put("location", a.location());
+        m.put("startsAt", a.startsAt().toString());
+        m.put("endsAt", a.endsAt().toString());
+        m.put("capacity", a.capacity());
+        m.put("status", a.status().name());
+        m.put("createdAt", a.createdAt().toString());
+        m.put("updatedAt", a.updatedAt().toString());
+        m.put("eventKind", a.eventKind().name());
+        m.put("host", a.host());
+        m.put("distanceKm", a.distanceKm());
+        m.put("verifiedBy", a.verifiedBy().name());
+        m.put("staffCapacity", a.staffCapacity());
+        m.put("pointsParticipant", a.pointsParticipant());
+        m.put("pointsStaff", a.pointsStaff());
+        m.put("tags", a.tags());
+        m.put("participantsJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.PARTICIPANT));
+        m.put("staffJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.STAFF));
+        m.put("userRole", PARTICIPANTS.findRole(a.id(), callerId).map(Enum::name).orElse(null));
+        return m;
     }
 
     private static String trimOrNull(String s) {

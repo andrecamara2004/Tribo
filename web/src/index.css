@@ -391,10 +391,225 @@ code {
 }
 
 /* ============================================================
+   PROFILE
+   ============================================================ */
+.profile-head {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  display: flex; align-items: center; gap: 24px;
+  margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.profile-head::before {
+  content: ""; position: absolute; top: -120px; right: -80px;
+  width: 360px; height: 360px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,184,107,.10), transparent 70%);
+}
+.profile-head .who { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.profile-head h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.profile-head .handle { color: var(--muted); font-size: 14px; }
+.profile-head .clan-tag-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green-50); color: var(--green-700);
+  padding: 6px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; margin-top: 10px;
+}
+.profile-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-500); }
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px;
+}
+.stat-card .icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--green-50); color: var(--green-600);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+.stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; font-weight: 600; }
+.stat-card .value { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; }
+.stat-card .value.empty { color: var(--muted); font-size: 18px; font-weight: 700; }
+.stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ============================================================
+   CLAN RANKING
+   ============================================================ */
+.period-bar { display: flex; align-items: center; gap: 12px; margin: 0 0 18px 0; }
+.period-bar .period-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .12em;
+}
+.tabs.period-tabs button { padding: 6px 12px; font-size: 12px; }
+.tabs.period-tabs button.active { background: var(--ink); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+
+.podium { display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 12px; align-items: end; margin-bottom: 24px; }
+.podium-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px; text-align: center; position: relative;
+}
+.podium-card.first { background: linear-gradient(180deg, #FFF8DA, #FFFFFF); border-color: #F4DA86; padding-top: 28px; }
+.podium-card .crown { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 24px; }
+.podium-card .name { font-weight: 700; font-size: 15px; margin-top: 8px; }
+.podium-card .headline { font-size: 24px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; }
+.podium-card .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.medal {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 14px;
+}
+.medal.gold { background: var(--gold); }
+.medal.silver { background: var(--silver); }
+.medal.bronze { background: var(--bronze); }
+
+.clan-table { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.clan-row {
+  display: grid; grid-template-columns: 40px 1fr 100px 110px 100px;
+  align-items: center; gap: 12px; padding: 14px 18px;
+  border-bottom: 1px solid var(--line); background: var(--card);
+}
+.clan-row:last-child { border-bottom: 0; }
+.clan-row:hover { background: var(--bg); }
+.clan-row.head { background: var(--bg); font-size: 11px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+.clan-row.mine { background: linear-gradient(90deg, rgba(0,184,107,.08), rgba(0,184,107,0)); border-left: 3px solid var(--green-500); }
+.clan-row .rk { font-weight: 800; color: var(--muted); font-size: 16px; }
+.clan-row .clan-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.clan-row .clan-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px; color: #fff; font-weight: 800; font-size: 12px; flex: none;
+}
+.clan-row strong { font-size: 14px; }
+.clan-row small { display: block; color: var(--muted); font-size: 11px; }
+.clan-row .num { font-weight: 700; font-size: 15px; }
+.clan-row .num small { color: var(--muted); font-size: 11px; font-weight: 500; margin-left: 2px; }
+
+/* ============================================================
+   FEED
+   ============================================================ */
+.feed-list { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.feed-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px;
+  transition: box-shadow .15s ease;
+}
+.feed-card:hover { box-shadow: var(--shadow); }
+.feed-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.feed-head .who { flex: 1; min-width: 0; }
+.feed-head .who strong { display: block; font-size: 14px; font-weight: 600; }
+.feed-head .who small { color: var(--muted); font-size: 12px; }
+.feed-title { font-size: 16px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.01em; }
+
+.metric { display: flex; flex-direction: column; gap: 4px; }
+.metric .label { font-size: 11px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+.metric .value { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+.metric .value small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+
+.feed-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  background: var(--bg); border-radius: 12px; padding: 14px; margin-bottom: 14px;
+}
+.feed-map { height: 120px; border-radius: 12px; overflow: hidden; margin-bottom: 14px; border: 1px solid var(--line); }
+.feed-actions {
+  display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--muted); align-items: center;
+}
+.feed-actions button {
+  background: transparent; border: none; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; font-weight: 500;
+  padding: 4px 8px; border-radius: 8px;
+}
+.feed-actions button:hover:not(:disabled) { background: var(--bg); color: var(--green-600); }
+.feed-actions button.liked { color: var(--green-600); }
+.feed-actions button.liked svg { fill: var(--green-500); stroke: var(--green-500); }
+.feed-actions .spacer { flex: 1; }
+
+/* ============================================================
+   RUN TRACKER (Last run)
+   ============================================================ */
+.tracker-layout {
+  display: grid; grid-template-columns: 360px 1fr; gap: 28px;
+  align-items: start;
+}
+.phone {
+  width: 360px; height: 720px;
+  background: #0F1F15; border-radius: 48px;
+  padding: 14px; box-shadow: var(--shadow-lg);
+  position: relative; margin: 0 auto;
+}
+.phone-notch {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 26px; background: #000; border-radius: 0 0 14px 14px;
+}
+.phone-screen {
+  height: 100%; background: linear-gradient(180deg, #FFFFFF, #F2F8F4);
+  border-radius: 36px; padding: 50px 22px 22px;
+  display: flex; flex-direction: column; gap: 16px; overflow: hidden;
+}
+.live-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(0,184,107,.10); color: var(--green-600);
+  padding: 6px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; align-self: flex-start;
+}
+.live-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.live-pill.past { background: var(--bg); color: var(--ink-soft); }
+.big-metric {
+  background: linear-gradient(135deg, var(--green-500), var(--green-700));
+  color: #fff; padding: 22px; border-radius: 18px;
+}
+.big-metric .label { color: rgba(255,255,255,.85); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+.big-metric .value { font-size: 56px; font-weight: 800; line-height: 1; margin-top: 6px; letter-spacing: -0.03em; }
+.big-metric .value em { font-size: 18px; font-style: normal; color: rgba(255,255,255,.7); margin-left: 6px; }
+.tile-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+.tile .label { font-size: 10px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+.tile .value { font-size: 18px; font-weight: 700; margin-top: 2px; letter-spacing: -0.01em; }
+.tracker-map { border-radius: 16px; overflow: hidden; height: 130px; border: 1px solid var(--line); }
+.tracker-controls { display: flex; gap: 10px; margin-top: auto; }
+.tracker-controls button { flex: 1; padding: 14px; border-radius: 14px; font-weight: 700; font-size: 14px; border: none; }
+.btn-pause { background: var(--bg); color: var(--ink); }
+.btn-stop { background: var(--green-500); color: #fff; }
+
+.tracker-side h3 { margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+.splits { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 0; }
+.splits-row {
+  display: grid; grid-template-columns: 60px 1fr 80px;
+  align-items: center; gap: 12px; padding: 12px 18px; font-size: 13px;
+  border-bottom: 1px solid var(--line);
+}
+.splits-row:last-child { border-bottom: 0; }
+.splits-row.head { font-size: 11px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+.split-bar { height: 6px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.split-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--green-400), var(--green-600)); border-radius: 999px; }
+
+/* ============================================================
+   WEEKLY DISTANCE BARS (Profile)
+   ============================================================ */
+.bars-lg { display: flex; align-items: flex-end; gap: 14px; height: 180px; padding-top: 12px; }
+.bars-lg .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.bars-lg .bar {
+  width: 100%; min-height: 4px;
+  background: linear-gradient(180deg, var(--green-400), var(--green-600));
+  border-radius: 6px; position: relative;
+}
+.bars-lg .bar.empty { background: var(--line); }
+.bars-lg .bar .km {
+  position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap;
+}
+.bars-lg .day { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1100px) {
   .vol-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .tracker-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }

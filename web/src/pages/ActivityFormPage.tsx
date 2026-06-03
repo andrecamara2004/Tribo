@@ -34,6 +34,15 @@ const empty = {
   startsAt: "",
   endsAt: "",
   capacity: "10",
+  // volunteer-event fields
+  eventKind: "RUN",
+  host: "",
+  distanceKm: "",
+  verifiedBy: "PEER",
+  staffCapacity: "0",
+  pointsParticipant: "0",
+  pointsStaff: "0",
+  tags: "",
 };
 
 export function ActivityFormPage() {
@@ -59,6 +68,14 @@ export function ActivityFormPage() {
           startsAt: isoToLocalInput(a.startsAt),
           endsAt: isoToLocalInput(a.endsAt),
           capacity: String(a.capacity),
+          eventKind: a.eventKind ?? "RUN",
+          host: a.host ?? "",
+          distanceKm: a.distanceKm ? String(a.distanceKm) : "",
+          verifiedBy: a.verifiedBy ?? "PEER",
+          staffCapacity: String(a.staffCapacity ?? 0),
+          pointsParticipant: String(a.pointsParticipant ?? 0),
+          pointsStaff: String(a.pointsStaff ?? 0),
+          tags: (a.tags ?? []).join(", "),
         });
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Failed to load activity.");
@@ -83,6 +100,7 @@ export function ActivityFormPage() {
     if (new Date(form.endsAt) <= new Date(form.startsAt)) return setError("End must be after start.");
     if (!Number.isInteger(capacity) || capacity < 1) return setError("Capacity must be a whole number ≥ 1.");
 
+    const isVolunteer = form.eventKind === "VOLUNTEER";
     const input: ActivityInput = {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -91,6 +109,16 @@ export function ActivityFormPage() {
       startsAt: localInputToIso(form.startsAt),
       endsAt: localInputToIso(form.endsAt),
       capacity,
+      eventKind: form.eventKind as ActivityInput["eventKind"],
+      ...(isVolunteer && {
+        host: form.host.trim(),
+        distanceKm: Number(form.distanceKm) || 0,
+        verifiedBy: form.verifiedBy as ActivityInput["verifiedBy"],
+        staffCapacity: Number(form.staffCapacity) || 0,
+        pointsParticipant: Number(form.pointsParticipant) || 0,
+        pointsStaff: Number(form.pointsStaff) || 0,
+        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      }),
     };
 
     setBusy(true);
@@ -156,10 +184,62 @@ export function ActivityFormPage() {
               onChange={(e) => update("endsAt", e.target.value)} required />
           </div>
           <div className="field">
-            <label htmlFor="capacity">Capacity</label>
+            <label htmlFor="capacity">Capacity (participants)</label>
             <input id="capacity" type="number" min={1} value={form.capacity}
               onChange={(e) => update("capacity", e.target.value)} required />
           </div>
+
+          <div className="field">
+            <label htmlFor="eventKind">Event type</label>
+            <select id="eventKind" value={form.eventKind} onChange={(e) => update("eventKind", e.target.value)}>
+              <option value="RUN">Run / activity</option>
+              <option value="VOLUNTEER">Volunteer event (staff + participants)</option>
+            </select>
+          </div>
+
+          {form.eventKind === "VOLUNTEER" && (
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16, marginBottom: 8 }}>
+              <div className="field">
+                <label htmlFor="host">Hosted by</label>
+                <input id="host" value={form.host} placeholder="Forest Runners / Quercus"
+                  onChange={(e) => update("host", e.target.value)} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="distanceKm">Distance (km)</label>
+                  <input id="distanceKm" type="number" step="0.1" min="0" value={form.distanceKm}
+                    onChange={(e) => update("distanceKm", e.target.value)} />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="verifiedBy">Verification</label>
+                  <select id="verifiedBy" value={form.verifiedBy} onChange={(e) => update("verifiedBy", e.target.value)}>
+                    <option value="PEER">Peer-verified</option>
+                    <option value="PARTNER">Partner-verified</option>
+                  </select>
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="staffCapacity">Staff spots</label>
+                  <input id="staffCapacity" type="number" min="0" value={form.staffCapacity}
+                    onChange={(e) => update("staffCapacity", e.target.value)} />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="tags">Tags (comma-separated)</label>
+                  <input id="tags" value={form.tags} placeholder="river, easy"
+                    onChange={(e) => update("tags", e.target.value)} />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="pointsParticipant">Participant points</label>
+                  <input id="pointsParticipant" type="number" min="0" value={form.pointsParticipant}
+                    onChange={(e) => update("pointsParticipant", e.target.value)} />
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label htmlFor="pointsStaff">Staff points</label>
+                  <input id="pointsStaff" type="number" min="0" value={form.pointsStaff}
+                    onChange={(e) => update("pointsStaff", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && <p className="form-error">{error}</p>}
 
