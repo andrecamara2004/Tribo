@@ -130,9 +130,31 @@ export function ProfilePage() {
           value={stats ? `${formatPace(stats.avgPaceSecPerKm)}/km` : "—"}
           sub="All-time" />
         <StatCard icon="leaf" label="Volunteer"
-          value={`${profile.volunteerEvents} event${profile.volunteerEvents === 1 ? "" : "s"}`}
-          sub={profile.staffEligible ? "Staff-eligible ✓" : `${Math.max(0, 3 - profile.volunteerEvents)} more for staff`} />
+          value={`${profile.volunteerPoints} pts`}
+          sub={`${profile.volunteerEvents} event${profile.volunteerEvents === 1 ? "" : "s"} · ${profile.staffEligible ? "staff-eligible" : `${Math.max(0, 3 - profile.volunteerEvents)} more for staff`}`} />
       </section>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-title">
+          <h3>Achievements</h3>
+          <small>{profile.achievements.length} earned</small>
+        </div>
+        {profile.achievements.length === 0 ? (
+          <p className="state-msg" style={{ margin: 0 }}>Run and volunteer to earn badges.</p>
+        ) : (
+          <div className="achievements">
+            {profile.achievements.map((a, i) => (
+              <div key={i} className="achievement">
+                <div className="ico">{a.icon}</div>
+                <div>
+                  <strong>{a.title}</strong>
+                  <small>{a.sub}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {stats && (
         <div className="card" style={{ marginBottom: 16 }}>

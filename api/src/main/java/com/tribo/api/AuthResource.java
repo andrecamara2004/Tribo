@@ -126,7 +126,8 @@ public class AuthResource {
                 Instant.now(),
                 false,
                 verified,
-                null            // new users start without a clan (D-3)
+                null,           // new users start without a clan (D-3)
+                0.0             // no weekly goal yet (Phase 6)
         );
         USERS.save(user);
 

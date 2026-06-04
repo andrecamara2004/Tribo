@@ -8,15 +8,20 @@ import com.tribo.api.activity.ParticipationRepository;
 import com.tribo.api.activity.ParticipationRole;
 import com.tribo.api.clan.Clan;
 import com.tribo.api.clan.ClanRepository;
+import com.tribo.api.error.ForbiddenException;
+import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.UnauthorizedException;
+import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.AvatarColor;
 import com.tribo.api.iam.JwtAuthFilter;
+import com.tribo.api.iam.OwnershipGuard;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.run.Run;
 import com.tribo.api.run.RunRepository;
 
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -30,6 +35,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,6 +45,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Activity feed (Sprint 3 Phase 4) + minimal kudos (D-5).
@@ -60,6 +67,7 @@ public class FeedResource {
     private static final UserRepository USERS = new UserRepository();
     private static final ClanRepository CLANS = new ClanRepository();
     private static final KudosRepository KUDOS = new KudosRepository();
+    private static final CommentRepository COMMENTS = new CommentRepository();
 
     private static final int DEFAULT_LIMIT = 30;
     private static final int MAX_LIMIT = 100;
@@ -150,6 +158,64 @@ public class FeedResource {
         return Response.noContent().build();
     }
 
+    // --- comments (Phase 6) --------------------------------------------------
+
+    @GET
+    @Path("/{itemId}/comments")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response comments(@Context ContainerRequestContext ctx, @PathParam("itemId") String itemId) {
+        authUser(ctx);
+        Map<String, User> userCache = new HashMap<>();
+        Map<String, Clan> clanCache = new HashMap<>();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Comment c : COMMENTS.listByItem(itemId)) items.add(commentView(c, userCache, clanCache));
+        return Response.ok(Map.of("items", items)).build();
+    }
+
+    @POST
+    @Path("/{itemId}/comments")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response addComment(@Context ContainerRequestContext ctx, @PathParam("itemId") String itemId,
+                               CommentRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        String text = req == null || req.text == null ? "" : req.text.trim();
+        if (text.isEmpty()) throw new ValidationException("Comment text is required.");
+        Comment c = new Comment(UUID.randomUUID().toString(), itemId, caller.userId(), text, Instant.now());
+        COMMENTS.save(c);
+        return Response.created(URI.create("/rest/feed/" + itemId + "/comments/" + c.id()))
+                .entity(commentView(c, new HashMap<>(), new HashMap<>()))
+                .build();
+    }
+
+    @DELETE
+    @Path("/{itemId}/comments/{commentId}")
+    public Response deleteComment(@Context ContainerRequestContext ctx,
+                                  @PathParam("itemId") String itemId,
+                                  @PathParam("commentId") String commentId) {
+        AuthenticatedUser caller = authUser(ctx);
+        Comment c = COMMENTS.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("No comment with id " + commentId + "."));
+        if (!c.userId().equals(caller.userId()) && !OwnershipGuard.isPrivileged(caller.role())) {
+            throw new ForbiddenException("You can only delete your own comments.");
+        }
+        COMMENTS.delete(commentId);
+        return Response.noContent().build();
+    }
+
+    private Map<String, Object> commentView(Comment c, Map<String, User> userCache, Map<String, Clan> clanCache) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", c.id());
+        m.put("text", c.text());
+        m.put("createdAt", c.createdAt().toString());
+        m.put("author", author(c.userId(), userCache, clanCache));
+        return m;
+    }
+
+    public static class CommentRequest {
+        public String text;
+    }
+
     // --- helpers -------------------------------------------------------------
 
     private Map<String, Object> base(String id, String type, Instant when, String title,
@@ -163,7 +229,7 @@ public class FeedResource {
         m.put("location", location);
         m.put("kudosCount", KUDOS.countByItem(id));
         m.put("likedByMe", KUDOS.exists(id, callerId));
-        m.put("commentCount", 0);
+        m.put("commentCount", COMMENTS.countByItem(id));
         return m;
     }
 

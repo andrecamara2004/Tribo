@@ -19,14 +19,35 @@ public final class VolunteerStats {
 
     private VolunteerStats() {}
 
+    /** A user's volunteer standing, computed in a single scan of their joins. */
+    public record Summary(int events, int staffEvents, long points) {
+        public boolean staffEligible() {
+            return events >= STAFF_THRESHOLD;
+        }
+    }
+
+    public static Summary summary(String userId) {
+        int events = 0;
+        int staffEvents = 0;
+        long points = 0;
+        for (Participation p : PARTICIPANTS.findByUser(userId)) {
+            Optional<Activity> found = ACTIVITIES.findById(p.activityId());
+            if (found.isEmpty() || found.get().eventKind() != EventKind.VOLUNTEER) continue;
+            Activity a = found.get();
+            events++;
+            if (p.role() == ParticipationRole.STAFF) {
+                staffEvents++;
+                points += a.pointsStaff();
+            } else {
+                points += a.pointsParticipant();
+            }
+        }
+        return new Summary(events, staffEvents, points);
+    }
+
     /** Number of VOLUNTEER-kind activities the user has joined (any role). */
     public static int volunteerEventCount(String userId) {
-        int count = 0;
-        for (Participation p : PARTICIPANTS.findByUser(userId)) {
-            Optional<Activity> a = ACTIVITIES.findById(p.activityId());
-            if (a.isPresent() && a.get().eventKind() == EventKind.VOLUNTEER) count++;
-        }
-        return count;
+        return summary(userId).events();
     }
 
     public static boolean isStaffEligible(String userId) {

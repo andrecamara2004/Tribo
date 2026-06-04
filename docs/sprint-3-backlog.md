@@ -32,8 +32,16 @@ Phase 1  Identity & Clans      ← DONE (deployed + 26/26 e2e)
 Phase 2  Runs                  ← DONE (deployed + 23/23 e2e)
 Phase 3  Volunteer events      ← DONE (deployed + 19/19 e2e)
 Phase 4  Feed + minimal kudos  ← DONE (deployed + 14/14 e2e)
-Phase 5  Clan ranking          ← IN PROGRESS  (aggregate membership + runs + volunteer points)
+Phase 5  Clan ranking          ← DONE (deployed + 9/9 e2e)
+Phase 6  Deferred features      ← IN PROGRESS  (points, achievements, goals, comments, trend)
 ```
+
+**Phase 6** closes the deferrals: volunteer **points** credited as a real
+(derived) total on `/users/me` + clan ranking; **achievements** computed from
+runs+volunteering; per-user weekly **goal** (`PUT /users/me/goal`) shown on the
+tracker; **comments** on feed items (`GET/POST/DELETE /feed/{itemId}/comments`,
+real `commentCount`); ranking **trend** via weekly rank snapshots. See
+`api-contract.md` §3.11.
 
 Each phase: doc update first → backend → matching web screen wired to real data
 (enable its `web/src/components/Shell.tsx` nav item).

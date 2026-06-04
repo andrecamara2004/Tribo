@@ -821,6 +821,52 @@ metric's value/sort).
 
 ---
 
+## 3.11 Sprint 3.5 (Phase 6) — points, achievements, goals, comments, trend
+
+Closes the previously-deferred prototype features. All computed from existing
+data where possible (no new stored counters), consistent with the rest of the API.
+
+### `GET /rest/users/me` — added fields
+
+```json
+{
+  "...": "(existing profile fields)",
+  "volunteerPoints": 320,        // sum over the user's volunteer joins of the event's participant/staff points
+  "weeklyGoalKm": 20.0,          // per-user weekly distance goal (0 = none)
+  "achievements": [              // earned badges, derived from runs + volunteering
+    { "icon": "🏅", "title": "Sub-5 pace", "sub": "Avg pace under 5:00/km" }
+  ]
+}
+```
+
+Volunteer points are now **credited** as a real total (still derived per request,
+not a stored counter). Achievement rules (earned when true): Sub-5 pace
+(all-time avg < 5:00/km), Century Month (≥100 km this month), On Fire (streak ≥3),
+Eco Runner (≥3 volunteer events), Trusted Staff (staff-eligible).
+
+### `PUT /rest/users/me/goal` — set weekly distance goal
+
+**Request:** `{ "weeklyGoalKm": 20 }` (≥ 0; 0 clears). **Response 200:** the updated
+profile (same shape as `GET /users/me`). **Auth:** any authenticated user.
+
+### Comments (replaces the deferred `commentCount: 0`)
+
+- `GET /rest/feed/{itemId}/comments` → `{ "items": [ { "id","text","createdAt","author":{userId,name,color} } ] }`, oldest first.
+- `POST /rest/feed/{itemId}/comments` `{ "text": "…" }` → `201` the created comment. `400` if text is blank.
+- `DELETE /rest/feed/{itemId}/comments/{commentId}` → `204`. Author or privileged (BACKOFFICE/SYSADMIN) only, else `403`; `404` if missing.
+
+Feed items now report a real `commentCount`. **Auth:** any authenticated user.
+
+### Clan ranking — `trend` is now real
+
+`GET /clans/ranking` rows carry `trend` = `up` | `down` | `flat`, comparing each
+clan's current rank to its rank in the **previous ISO week** for the same
+`metric`+`period`. The endpoint records a weekly rank snapshot per clan as a side
+effect, so trend becomes meaningful once two distinct weeks have been observed
+(until then, `flat`).
+
+---
+
 ## 4. Things deliberately deferred
 
 These are real concerns but out of scope for Sprint 1. Don't let them block IAM:

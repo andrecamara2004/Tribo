@@ -60,7 +60,8 @@ public class UserRepository {
                 .set("profileVisibility", user.profileVisibility().name())
                 .set("createdAt", user.createdAt().toString())
                 .set("suspended", user.suspended())
-                .set("verified", user.verified());
+                .set("verified", user.verified())
+                .set("weeklyGoalKm", user.weeklyGoalKm());
 
         // clanId is optional (D-3): only write the property when the user is in
         // a clan, so "no clan" is simply the absence of the property.
@@ -127,7 +128,8 @@ public class UserRepository {
                 !e.contains("verified") || e.getBoolean("verified"),
                 // clanId is optional and absent for users not in a clan (and for
                 // legacy entities created before D-3).
-                e.contains("clanId") ? e.getString("clanId") : null
+                e.contains("clanId") ? e.getString("clanId") : null,
+                e.contains("weeklyGoalKm") ? e.getDouble("weeklyGoalKm") : 0.0
         );
     }
 
@@ -143,7 +145,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), true, u.clanId());
+                u.suspended(), true, u.clanId(), u.weeklyGoalKm());
         save(updated);
         return Optional.of(updated);
     }
@@ -161,7 +163,20 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), clanId);
+                u.suspended(), u.verified(), clanId, u.weeklyGoalKm());
+        save(updated);
+        return Optional.of(updated);
+    }
+
+    /** Sets the caller's weekly distance goal in km (0 clears it). Phase 6. */
+    public Optional<User> setWeeklyGoal(String userId, double km) {
+        Optional<User> found = findById(userId);
+        if (found.isEmpty()) return Optional.empty();
+        User u = found.get();
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), Math.max(0, km));
         save(updated);
         return Optional.of(updated);
     }

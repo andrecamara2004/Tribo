@@ -10,6 +10,12 @@ export interface ClanRef {
   color: string;
 }
 
+export interface Achievement {
+  icon: string;
+  title: string;
+  sub: string;
+}
+
 export interface Me {
   userId: string;
   email: string;
@@ -24,11 +30,21 @@ export interface Me {
   clan: ClanRef | null;
   volunteerEvents: number; // VOLUNTEER activities joined
   staffEligible: boolean; // true once volunteerEvents >= 3
+  volunteerPoints: number; // credited total (derived)
+  weeklyGoalKm: number; // per-user weekly distance goal; 0 = none
+  achievements: Achievement[];
 }
 
 /** GET /users/me — full profile of the signed-in user. */
 export async function getMe(): Promise<Me> {
   const me = await apiFetch<Me>("/users/me");
   if (!me) throw new Error("Profile read returned no body.");
+  return me;
+}
+
+/** PUT /users/me/goal — set the weekly distance goal (0 clears). */
+export async function setWeeklyGoal(weeklyGoalKm: number): Promise<Me> {
+  const me = await apiFetch<Me>("/users/me/goal", { method: "PUT", body: JSON.stringify({ weeklyGoalKm }) });
+  if (!me) throw new Error("Set goal returned no body.");
   return me;
 }

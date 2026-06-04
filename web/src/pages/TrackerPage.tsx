@@ -4,7 +4,9 @@
 // mobile GPS logging isn't built yet, so the form lets you post a finished run
 // (D-4) from the web to see the feature end-to-end.
 import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "../auth/AuthContext";
 import { getLastRun, getMyStats, logRun, type Run, type RunStats } from "../api/runs";
+import { setWeeklyGoal } from "../api/users";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { RouteMap } from "../components/RouteMap";
@@ -20,6 +22,7 @@ const emptyForm = {
 };
 
 export function TrackerPage() {
+  const { profile, refreshProfile } = useAuth();
   const [last, setLast] = useState<Run | null>(null);
   const [stats, setStats] = useState<RunStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,23 @@ export function TrackerPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const [goalEditing, setGoalEditing] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+  const [goalBusy, setGoalBusy] = useState(false);
+
+  async function saveGoal(e: FormEvent) {
+    e.preventDefault();
+    setGoalBusy(true);
+    try {
+      await setWeeklyGoal(Math.max(0, Number(goalInput) || 0));
+      await refreshProfile();
+      setGoalEditing(false);
+    } catch {
+      /* ignore — non-critical */
+    } finally {
+      setGoalBusy(false);
+    }
+  }
 
   // Initial load — await before setState (avoids set-state-in-effect), with a
   // cancel guard.
@@ -231,18 +251,50 @@ export function TrackerPage() {
               </div>
             )}
 
-            {stats && (
-              <div className="card" style={{ marginTop: 20 }}>
-                <div className="card-title">
-                  <h3>This week</h3>
-                  <small>{stats.weeklyKm.reduce((a, b) => a + b, 0).toFixed(1)} km</small>
+            {stats && (() => {
+              const weekTotal = stats.weeklyKm.reduce((a, b) => a + b, 0);
+              const goal = profile?.weeklyGoalKm ?? 0;
+              const pct = goal > 0 ? Math.min(100, (weekTotal / goal) * 100) : 0;
+              return (
+                <div className="card" style={{ marginTop: 20 }}>
+                  <div className="card-title">
+                    <h3>Weekly goal</h3>
+                    <button className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }}
+                      onClick={() => { setGoalInput(goal ? String(goal) : ""); setGoalEditing((v) => !v); }}>
+                      {goal > 0 ? "Edit" : "Set goal"}
+                    </button>
+                  </div>
+
+                  {goalEditing ? (
+                    <form onSubmit={saveGoal} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      <input type="number" step="0.5" min="0" value={goalInput} placeholder="km / week"
+                        onChange={(e) => setGoalInput(e.target.value)}
+                        style={{ flex: 1, padding: "8px 12px", border: "1px solid var(--line)", borderRadius: 10 }} />
+                      <button type="submit" className="btn btn-primary" disabled={goalBusy} style={{ padding: "8px 14px" }}>
+                        {goalBusy ? "…" : "Save"}
+                      </button>
+                    </form>
+                  ) : goal > 0 ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <strong>{weekTotal.toFixed(1)} / {goal.toFixed(1)} km</strong>
+                        <span className="pill">{Math.round(pct)}%</span>
+                      </div>
+                      <div className="progress-bar"><span style={{ width: `${pct}%` }} /></div>
+                    </>
+                  ) : (
+                    <p className="state-msg" style={{ margin: "0 0 8px" }}>
+                      No weekly goal set — {weekTotal.toFixed(1)} km logged this week.
+                    </p>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--muted)", marginTop: 10 }}>
+                    <span>{stats.monthRuns} runs this month · {stats.monthKm.toFixed(1)} km</span>
+                    <span>avg {formatPace(stats.avgPaceSecPerKm)}/km</span>
+                  </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--muted)" }}>
-                  <span>{stats.monthRuns} runs this month · {stats.monthKm.toFixed(1)} km</span>
-                  <span>avg {formatPace(stats.avgPaceSecPerKm)}/km</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}

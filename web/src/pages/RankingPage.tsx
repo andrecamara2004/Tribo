@@ -129,7 +129,15 @@ export function RankingPage() {
                 </div>
                 <span className="num">{formatPace(c.avgPaceSecPerKm)}<small>/km</small></span>
                 <span className="num">{distanceFor(c, period).toFixed(0)}<small>km</small></span>
-                <span className="num">{c.volunteerPoints.toLocaleString()}<small>pts</small></span>
+                <span className="num">
+                  {c.volunteerPoints.toLocaleString()}<small>pts</small>{" "}
+                  <span style={{
+                    color: c.trend === "up" ? "var(--green-600)" : c.trend === "down" ? "var(--danger)" : "var(--muted)",
+                    fontWeight: 700,
+                  }}>
+                    {c.trend === "up" ? "↑" : c.trend === "down" ? "↓" : "→"}
+                  </span>
+                </span>
               </div>
             ))}
           </div>

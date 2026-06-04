@@ -1,8 +1,12 @@
 // src/pages/FeedPage.tsx
 // Sprint 3 Phase 4: the activity feed — a unified, newest-first timeline of runs
 // and volunteer joins from everyone (All) or your clan (My clan), with kudos.
-import { useEffect, useState } from "react";
-import { getFeed, likeItem, unlikeItem, type FeedItem } from "../api/feed";
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  getFeed, likeItem, unlikeItem, getComments, addComment, deleteComment,
+  type FeedItem, type Comment,
+} from "../api/feed";
+import { useAuth } from "../auth/AuthContext";
 import { Shell } from "../components/Shell";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
@@ -92,7 +96,49 @@ export function FeedPage() {
 }
 
 function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
+  const { user } = useAuth();
   const isVol = item.type === "volunteer";
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [count, setCount] = useState(item.commentCount);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function toggleComments() {
+    const next = !showComments;
+    setShowComments(next);
+    if (next) {
+      try { setComments(await getComments(item.id)); } catch { /* ignore */ }
+    }
+  }
+
+  async function postComment(e: FormEvent) {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    setBusy(true);
+    try {
+      const c = await addComment(item.id, t);
+      setComments((prev) => [...prev, c]);
+      setCount((n) => n + 1);
+      setText("");
+    } catch {
+      /* ignore */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeComment(id: string) {
+    try {
+      await deleteComment(item.id, id);
+      setComments((prev) => prev.filter((c) => c.id !== id));
+      setCount((n) => Math.max(0, n - 1));
+    } catch {
+      /* ignore */
+    }
+  }
+
   return (
     <article className="feed-card">
       <div className="feed-head">
@@ -137,8 +183,8 @@ function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
         <button className={item.likedByMe ? "liked" : ""} onClick={onKudos}>
           <Icon name="heart" size={16} /> {item.kudosCount}
         </button>
-        <button disabled title="Comments coming soon">
-          <Icon name="comment" size={16} /> {item.commentCount}
+        <button className={showComments ? "liked" : ""} onClick={toggleComments}>
+          <Icon name="comment" size={16} /> {count}
         </button>
         <span className="spacer" />
         {isVol && (
@@ -147,6 +193,30 @@ function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
           </span>
         )}
       </div>
+
+      {showComments && (
+        <div className="feed-comments">
+          {comments.length === 0 && <p className="state-msg" style={{ margin: 0, fontSize: 13 }}>No comments yet — be the first.</p>}
+          {comments.map((c) => (
+            <div key={c.id} className="feed-comment">
+              <Avatar name={c.author.name} color={c.author.color} size="sm" />
+              <div className="body">
+                <strong>{c.author.name}</strong>
+                <p>{c.text}</p>
+              </div>
+              {c.author.userId === user?.userId && (
+                <button className="del" onClick={() => removeComment(c.id)}>Delete</button>
+              )}
+            </div>
+          ))}
+          <form className="comment-form" onSubmit={postComment}>
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a comment…" maxLength={500} />
+            <button type="submit" className="btn btn-primary" style={{ padding: "8px 14px" }} disabled={busy || !text.trim()}>
+              Post
+            </button>
+          </form>
+        </div>
+      )}
     </article>
   );
 }

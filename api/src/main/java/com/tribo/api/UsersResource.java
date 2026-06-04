@@ -5,6 +5,7 @@ import com.tribo.api.clan.Clan;
 import com.tribo.api.clan.ClanRepository;
 import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.UnauthorizedException;
+import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.AllowedRoles;
 import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.AvatarColor;
@@ -16,8 +17,10 @@ import com.tribo.api.run.Run;
 import com.tribo.api.run.RunRepository;
 import com.tribo.api.run.RunStats;
 
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -27,6 +30,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,13 +73,29 @@ public class UsersResource {
             // no clan rather than a dangling reference.
         }
 
-        int volunteerEvents = VolunteerStats.volunteerEventCount(u.id());
+        VolunteerStats.Summary vol = VolunteerStats.summary(u.id());
+        RunStats stats = RunStats.from(RUNS.listByOwner(u.id(), Integer.MAX_VALUE), Instant.now());
         MeResponse body = new MeResponse(
                 u.id(), u.email(), u.fullName(), u.age(), u.role().name(),
                 u.verified(), u.profileVisibility().name(), u.createdAt().toString(),
                 handleFor(u.email()), AvatarColor.forId(u.id()), clan,
-                volunteerEvents, volunteerEvents >= VolunteerStats.STAFF_THRESHOLD);
+                vol.events(), vol.staffEligible(), vol.points(), u.weeklyGoalKm(),
+                achievementsFor(stats, vol));
         return Response.ok(body).build();
+    }
+
+    // --- PUT /users/me/goal — set the weekly distance goal (Phase 6) ---------
+
+    @PUT
+    @Path("/me/goal")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response setGoal(@Context ContainerRequestContext ctx, GoalRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        double km = req == null || req.weeklyGoalKm == null ? 0 : req.weeklyGoalKm;
+        if (km < 0) throw new ValidationException("weeklyGoalKm cannot be negative.");
+        USERS.setWeeklyGoal(caller.userId(), km);
+        return me(ctx); // echo the updated profile
     }
 
     // --- GET /users/me/stats — derived running stats (Sprint 3 Phase 2) ------
@@ -123,8 +143,37 @@ public class UsersResource {
         return "@" + (cleaned.isEmpty() ? "user" : cleaned);
     }
 
+    /** Earned badges derived from real run + volunteer data (Phase 6). */
+    private static List<Achievement> achievementsFor(RunStats s, VolunteerStats.Summary vol) {
+        List<Achievement> out = new ArrayList<>();
+        if (s.avgPaceSecPerKm() != null && s.avgPaceSecPerKm() < 300) {
+            out.add(new Achievement("🏅", "Sub-5 pace", "Avg pace under 5:00/km"));
+        }
+        if (s.monthKm() >= 100) {
+            out.add(new Achievement("🏃", "Century month", "100+ km this month"));
+        }
+        if (s.streak() >= 3) {
+            out.add(new Achievement("🔥", s.streak() + "-day streak", "Keep it going"));
+        }
+        if (vol.events() >= 3) {
+            out.add(new Achievement("🌳", "Eco Runner", vol.events() + " volunteer events"));
+        }
+        if (vol.staffEligible()) {
+            out.add(new Achievement("🛡️", "Trusted staff", "Eligible to staff events"));
+        }
+        return out;
+    }
+
     /** Subset of clan fields embedded in the profile (no memberCount needed here). */
     public record ClanRef(String id, String name, String tag, String color) {
+    }
+
+    public record Achievement(String icon, String title, String sub) {
+    }
+
+    /** Body for PUT /users/me/goal. */
+    public static class GoalRequest {
+        public Double weeklyGoalKm;
     }
 
     /** Profile response — explicitly omits passwordHash and other secrets. */
@@ -132,6 +181,7 @@ public class UsersResource {
             String userId, String email, String fullName, int age, String role,
             boolean verified, String profileVisibility, String createdAt,
             String handle, String avatarColor, ClanRef clan,
-            int volunteerEvents, boolean staffEligible) {
+            int volunteerEvents, boolean staffEligible, long volunteerPoints,
+            double weeklyGoalKm, List<Achievement> achievements) {
     }
 }

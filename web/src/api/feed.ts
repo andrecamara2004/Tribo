@@ -54,3 +54,31 @@ export async function likeItem(itemId: string): Promise<{ kudosCount: number; li
 export async function unlikeItem(itemId: string): Promise<void> {
   await apiFetch(`/feed/${encodeURIComponent(itemId)}/kudos`, { method: "DELETE" });
 }
+
+export interface Comment {
+  id: string;
+  text: string;
+  createdAt: string;
+  author: { userId: string; name: string; clanName: string | null; color: string };
+}
+
+/** GET /feed/{itemId}/comments — oldest first. */
+export async function getComments(itemId: string): Promise<Comment[]> {
+  const page = await apiFetch<{ items: Comment[] }>(`/feed/${encodeURIComponent(itemId)}/comments`);
+  return page?.items ?? [];
+}
+
+/** POST /feed/{itemId}/comments. */
+export async function addComment(itemId: string, text: string): Promise<Comment> {
+  const c = await apiFetch<Comment>(`/feed/${encodeURIComponent(itemId)}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+  if (!c) throw new Error("Comment returned no body.");
+  return c;
+}
+
+/** DELETE /feed/{itemId}/comments/{commentId}. */
+export async function deleteComment(itemId: string, commentId: string): Promise<void> {
+  await apiFetch(`/feed/${encodeURIComponent(itemId)}/comments/${commentId}`, { method: "DELETE" });
+}

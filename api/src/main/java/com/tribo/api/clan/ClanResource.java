@@ -33,6 +33,7 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -67,6 +68,7 @@ public class ClanResource {
     private static final RunRepository RUNS = new RunRepository();
     private static final ParticipationRepository PARTICIPANTS = new ParticipationRepository();
     private static final ActivityRepository ACTIVITIES = new ActivityRepository();
+    private static final RankSnapshotRepository SNAPSHOTS = new RankSnapshotRepository();
 
     private static final Set<String> METRICS = Set.of("avgPace", "distance", "consistency", "impact");
     private static final Set<String> PERIODS = Set.of("all", "month", "week");
@@ -172,9 +174,19 @@ public class ClanResource {
 
         rows.sort(comparatorFor(metric, period));
 
+        String thisWeek = isoWeek(today);
+        String lastWeek = isoWeek(today.minusWeeks(1));
+
         List<Map<String, Object>> out = new ArrayList<>();
-        int rank = 1;
-        for (RankRow r : rows) out.add(r.toMap(rank++));
+        for (int i = 0; i < rows.size(); i++) {
+            RankRow r = rows.get(i);
+            int rank = i + 1;
+            // Trend vs the same metric+period a week ago; flat if no prior snapshot.
+            Integer prev = SNAPSHOTS.getRank(metric, period, lastWeek, r.clan().id()).orElse(null);
+            String trend = prev == null ? "flat" : rank < prev ? "up" : rank > prev ? "down" : "flat";
+            SNAPSHOTS.put(metric, period, thisWeek, r.clan().id(), rank); // record this week
+            out.add(r.toMap(rank, trend));
+        }
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("metric", metric);
@@ -196,6 +208,12 @@ public class ClanResource {
 
     private static double round1(double v) {
         return Math.round(v * 10.0) / 10.0;
+    }
+
+    /** ISO week label, e.g. "2026-W23" (week-based year + week-of-week-based-year). */
+    private static String isoWeek(LocalDate d) {
+        return String.format("%d-W%02d",
+                d.get(IsoFields.WEEK_BASED_YEAR), d.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
     }
 
     /** Mutable per-clan accumulator used while scanning runs/participations. */
@@ -220,7 +238,7 @@ public class ClanResource {
             };
         }
 
-        Map<String, Object> toMap(int rank) {
+        Map<String, Object> toMap(int rank, String trend) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("rank", rank);
             m.put("id", clan.id());
@@ -235,7 +253,7 @@ public class ClanResource {
             m.put("consistencyPct", consistencyPct);
             m.put("volunteerPoints", volunteerPoints);
             m.put("volunteerEvents", volunteerEvents);
-            m.put("trend", "flat");
+            m.put("trend", trend);
             return m;
         }
     }

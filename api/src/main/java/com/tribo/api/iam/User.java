@@ -30,7 +30,8 @@ public record User(
         Instant createdAt,
         boolean suspended,          // backoffice can flip this; login should reject if true
         boolean verified,           // privileged self-registered roles start false; backoffice verifies (D-1)
-        String clanId               // the clan the user belongs to, or null if none (D-3)
+        String clanId,              // the clan the user belongs to, or null if none (D-3)
+        double weeklyGoalKm         // per-user weekly distance goal; 0 = none (Phase 6)
 ) {
     public enum ProfileVisibility {
         PUBLIC,
