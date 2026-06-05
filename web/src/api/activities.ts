@@ -34,6 +34,8 @@ export interface Activity {
   pointsParticipant: number;
   pointsStaff: number;
   tags: string[];
+  latitude: number | null;
+  longitude: number | null;
 
   // derived — present only on read views (GET list / detail), not on create/edit
   participantsJoined?: number;
@@ -59,6 +61,8 @@ export interface ActivityInput {
   pointsParticipant?: number;
   pointsStaff?: number;
   tags?: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ActivityPage {

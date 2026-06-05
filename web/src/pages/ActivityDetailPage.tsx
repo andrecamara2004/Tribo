@@ -15,6 +15,7 @@ import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
 import { Avatar } from "../components/Avatar";
+import { LocationMap } from "../components/MapView";
 import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
 
 const PRIVILEGED = ["BACKOFFICE", "SYSADMIN"];
@@ -153,6 +154,12 @@ export function ActivityDetailPage() {
             <dd>{activity.description || "—"}</dd>
           </dl>
         </div>
+
+        {activity.latitude != null && activity.longitude != null && (
+          <div className="map-box" style={{ marginTop: 16 }}>
+            <LocationMap lat={activity.latitude} lng={activity.longitude} />
+          </div>
+        )}
 
         {notice && <p className="form-notice" style={{ marginTop: 16 }}>{notice}</p>}
         {error && <p className="form-error" style={{ marginTop: 16 }}>{error}</p>}

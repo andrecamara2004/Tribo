@@ -28,4 +28,6 @@ public class ActivityRequest {
     public Integer pointsParticipant;
     public Integer pointsStaff;
     public List<String> tags;
+    public Double latitude;   // optional location pin for the map
+    public Double longitude;
 }

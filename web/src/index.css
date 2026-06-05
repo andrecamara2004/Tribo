@@ -357,6 +357,8 @@ code {
 }
 .back-link:hover { color: var(--green-600); }
 
+.map-box { height: 240px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+
 .detail-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 16px; margin-bottom: 16px;

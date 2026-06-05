@@ -39,6 +39,8 @@ public record Activity(
         int staffCapacity,          // staff spots (participant spots = capacity)
         int pointsParticipant,
         int pointsStaff,
-        List<String> tags
+        List<String> tags,
+        Double latitude,           // location pin for the map; null if not set
+        Double longitude
 ) {
 }

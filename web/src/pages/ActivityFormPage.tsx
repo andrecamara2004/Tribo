@@ -13,6 +13,7 @@ import {
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
+import { LocationPicker } from "../components/MapView";
 
 /** ISO-8601 instant → value for <input type="datetime-local"> (local time). */
 function isoToLocalInput(iso: string): string {
@@ -43,6 +44,8 @@ const empty = {
   pointsParticipant: "0",
   pointsStaff: "0",
   tags: "",
+  latitude: "",
+  longitude: "",
 };
 
 export function ActivityFormPage() {
@@ -76,6 +79,8 @@ export function ActivityFormPage() {
           pointsParticipant: String(a.pointsParticipant ?? 0),
           pointsStaff: String(a.pointsStaff ?? 0),
           tags: (a.tags ?? []).join(", "),
+          latitude: a.latitude != null ? String(a.latitude) : "",
+          longitude: a.longitude != null ? String(a.longitude) : "",
         });
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Failed to load activity.");
@@ -110,6 +115,10 @@ export function ActivityFormPage() {
       endsAt: localInputToIso(form.endsAt),
       capacity,
       eventKind: form.eventKind as ActivityInput["eventKind"],
+      ...(form.latitude && form.longitude && {
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
+      }),
       ...(isVolunteer && {
         host: form.host.trim(),
         distanceKm: Number(form.distanceKm) || 0,
@@ -172,6 +181,26 @@ export function ActivityFormPage() {
           <div className="field">
             <label htmlFor="location">Location</label>
             <input id="location" value={form.location} onChange={(e) => update("location", e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label>Pin on map {form.latitude ? "" : "(optional — click to place)"}</label>
+            <div className="map-box">
+              <LocationPicker
+                lat={form.latitude ? Number(form.latitude) : null}
+                lng={form.longitude ? Number(form.longitude) : null}
+                onPick={(la, lo) => setForm((f) => ({ ...f, latitude: la.toFixed(6), longitude: lo.toFixed(6) }))}
+              />
+            </div>
+            {form.latitude && (
+              <div className="hint">
+                Pin: {Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)}
+                <button type="button" onClick={() => setForm((f) => ({ ...f, latitude: "", longitude: "" }))}
+                  style={{ marginLeft: 8, background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer" }}>
+                  clear
+                </button>
+              </div>
+            )}
           </div>
           <div className="field">
             <label htmlFor="startsAt">Starts</label>

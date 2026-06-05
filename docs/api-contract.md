@@ -649,9 +649,15 @@ gain fields and behaviour.
   "staffCapacity": 5,               // staff spots (participant spots = existing `capacity`)
   "pointsParticipant": 100,
   "pointsStaff": 110,
-  "tags": ["river", "easy"]
+  "tags": ["river", "easy"],
+  "latitude": 38.7057,            // optional location pin for the map (null if unset)
+  "longitude": -9.1466
 }
 ```
+
+`latitude`/`longitude` are optional and must be sent **together** (lat ∈ [-90,90],
+lng ∈ [-180,180]); they power the event-location map. Applies to plain and
+volunteer activities alike.
 
 On **read** (`GET /activities` and `GET /activities/{id}`) the response also
 carries derived, non-sensitive counts (it never lists participant identities):

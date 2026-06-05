@@ -81,7 +81,8 @@ public class ActivityResource {
                 ActivityStatus.PUBLISHED, // published on create so it's discoverable
                 now, now,
                 v.eventKind, v.host, v.distanceKm, v.verifiedBy,
-                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags);
+                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags,
+                v.latitude, v.longitude);
         ACTIVITIES.save(activity);
 
         return Response.created(URI.create("/rest/activities/" + id))
@@ -149,7 +150,8 @@ public class ActivityResource {
                 existing.status(),          // status changes go through /cancel, not PUT
                 existing.createdAt(), Instant.now(),
                 v.eventKind, v.host, v.distanceKm, v.verifiedBy,
-                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags);
+                v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags,
+                v.latitude, v.longitude);
         ACTIVITIES.save(updated);
         return Response.ok(updated).build();
     }
@@ -176,7 +178,7 @@ public class ActivityResource {
                 existing.createdAt(), Instant.now(),
                 existing.eventKind(), existing.host(), existing.distanceKm(), existing.verifiedBy(),
                 existing.staffCapacity(), existing.pointsParticipant(), existing.pointsStaff(),
-                existing.tags());
+                existing.tags(), existing.latitude(), existing.longitude());
         ACTIVITIES.save(cancelled);
         return Response.ok(cancelled).build();
     }
@@ -216,7 +218,8 @@ public class ActivityResource {
     private record Validated(String title, String description, String category, String location,
                              Instant startsAt, Instant endsAt, int capacity,
                              EventKind eventKind, String host, double distanceKm, VerifiedBy verifiedBy,
-                             int staffCapacity, int pointsParticipant, int pointsStaff, List<String> tags) {
+                             int staffCapacity, int pointsParticipant, int pointsStaff, List<String> tags,
+                             Double latitude, Double longitude) {
     }
 
     private static Validated validate(ActivityRequest req) {
@@ -266,8 +269,19 @@ public class ActivityResource {
             }
         }
 
+        // Optional location pin: both coordinates together, within valid ranges.
+        Double latitude = req.latitude;
+        Double longitude = req.longitude;
+        if ((latitude == null) != (longitude == null)) {
+            throw new ValidationException("latitude and longitude must be provided together.");
+        }
+        if (latitude != null && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+            throw new ValidationException("latitude must be in [-90,90] and longitude in [-180,180].");
+        }
+
         return new Validated(title, description, category, location, startsAt, endsAt, req.capacity,
-                eventKind, host, distanceKm, verifiedBy, staffCapacity, pointsParticipant, pointsStaff, tags);
+                eventKind, host, distanceKm, verifiedBy, staffCapacity, pointsParticipant, pointsStaff, tags,
+                latitude, longitude);
     }
 
     private static <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback, String field) {
@@ -308,6 +322,8 @@ public class ActivityResource {
         m.put("pointsParticipant", a.pointsParticipant());
         m.put("pointsStaff", a.pointsStaff());
         m.put("tags", a.tags());
+        m.put("latitude", a.latitude());
+        m.put("longitude", a.longitude());
         m.put("participantsJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.PARTICIPANT));
         m.put("staffJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.STAFF));
         m.put("userRole", PARTICIPANTS.findRole(a.id(), callerId).map(Enum::name).orElse(null));

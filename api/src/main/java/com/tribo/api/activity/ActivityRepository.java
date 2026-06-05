@@ -65,6 +65,12 @@ public class ActivityRepository {
         }
         entity.set("tags", tagValues);
 
+        // Coordinates are optional — only written when a location pin is set.
+        if (a.latitude() != null && a.longitude() != null) {
+            entity.set("latitude", a.latitude());
+            entity.set("longitude", a.longitude());
+        }
+
         DATASTORE.put(entity.build());
     }
 
@@ -143,7 +149,9 @@ public class ActivityRepository {
                 e.contains("staffCapacity") ? (int) e.getLong("staffCapacity") : 0,
                 e.contains("pointsParticipant") ? (int) e.getLong("pointsParticipant") : 0,
                 e.contains("pointsStaff") ? (int) e.getLong("pointsStaff") : 0,
-                tags
+                tags,
+                e.contains("latitude") ? e.getDouble("latitude") : null,
+                e.contains("longitude") ? e.getDouble("longitude") : null
         );
     }
 }
