@@ -359,6 +359,29 @@ code {
 
 .map-box { height: 240px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
 
+/* Find activities (map discovery) */
+.find-layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+.find-list { display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 200px); overflow: auto; }
+.find-row {
+  display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.find-row:hover { border-color: var(--green-200); }
+.find-row.active { border-color: var(--green-500); box-shadow: 0 0 0 2px rgba(0,184,107,.15); }
+.find-row strong { display: block; font-size: 14px; }
+.find-row small { color: var(--muted); font-size: 12px; }
+.find-row svg { color: var(--green-600); flex: none; }
+.find-map {
+  height: calc(100vh - 200px); min-height: 460px;
+  border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--bg);
+}
+@media (max-width: 1100px) {
+  .find-layout { grid-template-columns: 1fr; }
+  .find-map { height: 460px; }
+  .find-list { max-height: none; }
+}
+
 .detail-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 16px; margin-bottom: 16px;

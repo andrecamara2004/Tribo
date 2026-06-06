@@ -9,6 +9,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { TrackerPage } from "./pages/TrackerPage";
 import { FeedPage } from "./pages/FeedPage";
 import { RankingPage } from "./pages/RankingPage";
+import { FindActivityPage } from "./pages/FindActivityPage";
 import { ActivitiesPage } from "./pages/ActivitiesPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { ActivityFormPage } from "./pages/ActivityFormPage";
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/track" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
+          <Route path="/discover" element={<ProtectedRoute><FindActivityPage /></ProtectedRoute>} />
 
           <Route path="/activities" element={<ProtectedRoute><ActivitiesPage /></ProtectedRoute>} />
           <Route path="/activities/new" element={<ProtectedRoute roles={MANAGER_ROLES}><ActivityFormPage /></ProtectedRoute>} />

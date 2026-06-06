@@ -2,13 +2,22 @@
 // Google Maps for event locations. Reads the JS API key from
 // VITE_GOOGLE_MAPS_API_KEY (build-time). Degrades to a friendly placeholder
 // when no key is configured, so the app still builds/runs without one.
-import { useJsApiLoader, GoogleMap, MarkerF } from "@react-google-maps/api";
+import { useJsApiLoader, GoogleMap, MarkerF, InfoWindowF } from "@react-google-maps/api";
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const CONTAINER = { width: "100%", height: "100%" };
 const LISBON = { lat: 38.7223, lng: -9.1393 };
 
 type LatLng = { lat: number; lng: number };
+
+/** A located activity for the discovery map. */
+export interface MapPoint {
+  id: string;
+  title: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+}
 
 function Placeholder({ note }: { note: string }) {
   return (
@@ -48,6 +57,82 @@ function MapImpl({
 export function LocationMap({ lat, lng }: { lat: number; lng: number }) {
   if (!KEY) return <Placeholder note="Map unavailable — set VITE_GOOGLE_MAPS_API_KEY." />;
   return <MapImpl center={{ lat, lng }} marker={{ lat, lng }} />;
+}
+
+/** Map of many activities as pins, with an info window + "view" action. */
+export function ActivitiesMap({
+  points, selectedId, onSelect, onView,
+}: {
+  points: MapPoint[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onView: (id: string) => void;
+}) {
+  if (!KEY) return <Placeholder note="Map unavailable — set VITE_GOOGLE_MAPS_API_KEY." />;
+  return <ActivitiesMapImpl points={points} selectedId={selectedId} onSelect={onSelect} onView={onView} />;
+}
+
+function ActivitiesMapImpl({
+  points, selectedId, onSelect, onView,
+}: {
+  points: MapPoint[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onView: (id: string) => void;
+}) {
+  const { isLoaded, loadError } = useJsApiLoader({ id: "tribo-gmaps", googleMapsApiKey: KEY! });
+  if (loadError) return <Placeholder note="Map failed to load — check the API key / billing." />;
+  if (!isLoaded) return <Placeholder note="Loading map…" />;
+
+  // Fit the viewport to all pins on load (or center on the single pin).
+  const onLoad = (map: google.maps.Map) => {
+    if (points.length === 0) return;
+    if (points.length === 1) {
+      map.setCenter({ lat: points[0].latitude, lng: points[0].longitude });
+      map.setZoom(14);
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    points.forEach((p) => bounds.extend({ lat: p.latitude, lng: p.longitude }));
+    map.fitBounds(bounds);
+  };
+
+  const selected = points.find((p) => p.id === selectedId) ?? null;
+
+  return (
+    <GoogleMap
+      mapContainerStyle={CONTAINER}
+      center={LISBON}
+      zoom={12}
+      onLoad={onLoad}
+      onClick={() => onSelect(null)}
+      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+    >
+      {points.map((p) => (
+        <MarkerF key={p.id} position={{ lat: p.latitude, lng: p.longitude }} onClick={() => onSelect(p.id)} />
+      ))}
+      {selected && (
+        <InfoWindowF
+          position={{ lat: selected.latitude, lng: selected.longitude }}
+          onCloseClick={() => onSelect(null)}
+        >
+          <div style={{ maxWidth: 200, color: "#1b1b1b" }}>
+            <strong style={{ fontSize: 14 }}>{selected.title}</strong>
+            {selected.location && <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{selected.location}</div>}
+            <button
+              onClick={() => onView(selected.id)}
+              style={{
+                marginTop: 8, background: "#00B86B", color: "#fff", border: "none",
+                borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              View details →
+            </button>
+          </div>
+        </InfoWindowF>
+      )}
+    </GoogleMap>
+  );
 }
 
 /** Click-to-place picker; calls onPick with the chosen coordinates. */

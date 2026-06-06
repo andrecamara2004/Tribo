@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { id: "track", label: "Last run", icon: "run", path: "/track" },
   { id: "ranking", label: "Clan ranking", icon: "trophy", path: "/ranking" },
   { id: "activities", label: "Volunteer", icon: "leaf", path: "/activities" },
+  { id: "discover", label: "Find activities", icon: "pin", path: "/discover" },
   { id: "profile", label: "Profile", icon: "user", path: "/profile" },
 ];
 
