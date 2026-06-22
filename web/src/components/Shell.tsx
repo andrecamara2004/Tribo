@@ -20,9 +20,9 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { id: "feed", label: "Feed", icon: "home", path: "/feed" },
-  { id: "track", label: "Last run", icon: "run", path: "/track" },
+  { id: "track", label: "Runs", icon: "run", path: "/track" },
   { id: "clan", label: "Clan", icon: "trophy", path: "/clan" },
-  { id: "activities", label: "Volunteer", icon: "leaf", path: "/activities" },
+  { id: "activities", label: "Activities", icon: "leaf", path: "/activities" },
   { id: "discover", label: "Find activities", icon: "pin", path: "/discover" },
   { id: "profile", label: "Profile", icon: "user", path: "/profile" },
 ];
