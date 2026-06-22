@@ -3,21 +3,6 @@ package com.tribo.api.activity;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Domain model for an activity (the core Sprint 2 resource).
- *
- * Immutable record, mirroring the User pattern: pure Java, Jackson-serializable,
- * with the Datastore kind + property mapping living in ActivityRepository.
- *
- * Unlike User there are no secret fields, so an Activity can be returned to
- * clients directly without a separate response DTO.
- *
- *   ownerId  — the user id of the creator (set server-side from the JWT, never
- *              from the request body). Drives the ownership checks on edit/cancel.
- *   capacity — maximum participants; 0 or negative is rejected at validation.
- *   category — free-form for now (e.g. "sports", "culture"); a controlled
- *              vocabulary can come later without a breaking change.
- */
 public record Activity(
         String id,                  // UUID string, also the entity key
         String ownerId,
