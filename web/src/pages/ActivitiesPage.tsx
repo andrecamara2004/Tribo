@@ -1,14 +1,21 @@
 // src/pages/ActivitiesPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listActivities, type Activity } from "../api/activities";
+import { listActivities, type Activity, type EventKind } from "../api/activities";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
 import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
+
+type KindFilter = "ALL" | EventKind;
+const KIND_FILTERS: { value: KindFilter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "VOLUNTEER", label: "Volunteer" },
+  { value: "RUN", label: "Runs" },
+];
 
 export function ActivitiesPage() {
   const { user } = useAuth();
@@ -17,7 +24,7 @@ export function ActivitiesPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState("All");
+  const [kind, setKind] = useState<KindFilter>("ALL");
 
   // Initial load. Self-contained in the effect (no setState before the await)
   // so it doesn't trip react-hooks/set-state-in-effect.
@@ -52,13 +59,8 @@ export function ActivitiesPage() {
     }
   }
 
-  // Distinct categories present in the loaded data → client-side filter chips.
-  const categories = useMemo(() => {
-    const set = new Set(items.map((a) => a.category).filter(Boolean));
-    return ["All", ...Array.from(set)];
-  }, [items]);
-
-  const visible = category === "All" ? items : items.filter((a) => a.category === category);
+  // Client-side filter by event type (Volunteer / Runs).
+  const visible = kind === "ALL" ? items : items.filter((a) => a.eventKind === kind);
 
   const canManage = user != null && MANAGER_ROLES.includes(user.role);
 
@@ -96,15 +98,19 @@ export function ActivitiesPage() {
         </div>
       )}
 
-      {categories.length > 1 && (
-        <div className="vol-filters">
-          {categories.map((c) => (
-            <button key={c} className={category === c ? "active" : ""} onClick={() => setCategory(c)}>
-              {c}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="kind-filter" role="tablist" aria-label="Filter activities by type">
+        {KIND_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            role="tab"
+            aria-selected={kind === f.value}
+            className={kind === f.value ? "active" : ""}
+            onClick={() => setKind(f.value)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {loading && <p className="state-msg">Loading activities…</p>}
       {error && <p className="state-msg error">{error}</p>}

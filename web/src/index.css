@@ -703,27 +703,36 @@ code {
 /* ============================================================
    ACTIVITY CARDS (adapted from the prototype Volunteer screen)
    ============================================================ */
-.vol-filters {
-  display: flex;
-  gap: 8px;
+/* Segmented control to filter activities by type (All / Volunteer / Runs). */
+.kind-filter {
+  display: inline-flex;
+  gap: 4px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.vol-filters button {
+  padding: 4px;
   background: var(--card);
   border: 1px solid var(--line);
-  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+.kind-filter button {
+  background: transparent;
+  border: none;
+  padding: 7px 18px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-soft);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
 }
 
-.vol-filters button.active {
+.kind-filter button:hover {
+  color: var(--ink);
+}
+
+.kind-filter button.active {
   background: var(--green-500);
   color: #fff;
-  border-color: var(--green-500);
 }
 
 .vol-grid {
