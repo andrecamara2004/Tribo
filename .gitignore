@@ -1,0 +1,23 @@
+﻿# Build outputs (never commit)
+target/
+build/
+dist/
+node_modules/
+
+# Local config / secrets
+.env
+.env.local
+*-service-account.json
+
+# Python (validation scripts)
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml

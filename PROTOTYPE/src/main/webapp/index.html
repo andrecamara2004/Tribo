@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tribo — Run with your clan</title>
+  <link rel="icon" type="image/png" href="/assets/TriboLogo_NoBackground.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <header class="nav">
+    <a class="logo" href="/">
+      <img src="/assets/TriboLogo_NoBackground.png" alt="Tribo" width="32" height="32"/>
+      <span>Tribo</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#clans">Clans</a>
+      <a href="#volunteer">Volunteer</a>
+      <a href="#how">How it works</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="/app/" class="btn btn-ghost">Sign in</a>
+      <a href="/app/" class="btn btn-primary">Open the app</a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-text">
+        <span class="eyebrow">FOR RUNNERS WHO MOVE TOGETHER</span>
+        <h1>Run together. Compete together.<br/><span class="grad">Make impact.</span></h1>
+        <p class="lede">
+          Tribo turns your runs into a team sport. Form a clan, climb the rankings,
+          and clean up your city while you're at it.
+        </p>
+        <div class="cta-row">
+          <a href="/app/" class="btn btn-primary btn-lg">Try the prototype</a>
+          <a href="#features" class="btn btn-secondary btn-lg">See how it works</a>
+        </div>
+        <div class="hero-meta">
+          <div><strong>5</strong><span>active clans</span></div>
+          <div><strong>11k</strong><span>km this month</span></div>
+          <div><strong>320</strong><span>verified events</span></div>
+        </div>
+      </div>
+
+      <div class="hero-mock">
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="phone-top">
+              <span class="dot dot-green"></span>
+              <span>Live run (mobile) · Forest Runners</span>
+            </div>
+            <div class="phone-metric">
+              <span class="metric-label">Distance</span>
+              <span class="metric-value">5.42 <em>km</em></span>
+            </div>
+            <div class="phone-row">
+              <div><span>Pace</span><strong>4:51</strong></div>
+              <div><span>Time</span><strong>26:18</strong></div>
+            </div>
+            <div class="phone-map">
+              <svg viewBox="0 0 200 90" preserveAspectRatio="none" width="100%" height="100%">
+                <defs>
+                  <linearGradient id="mapBg" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%"  stop-color="#E8F7EF"/>
+                    <stop offset="100%" stop-color="#D5F0E1"/>
+                  </linearGradient>
+                </defs>
+                <rect width="200" height="90" fill="url(#mapBg)"/>
+                <path d="M5 70 Q40 30 80 50 T140 35 T195 25"
+                      stroke="#00B86B" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <circle cx="195" cy="25" r="4" fill="#00B86B"/>
+              </svg>
+            </div>
+            <div class="phone-rank">
+              <span class="rank-tag">#1</span>
+              <div>
+                <strong>Forest Runners</strong>
+                <small>4:42 avg pace · 412 km this week</small>
+              </div>
+              <span class="trend">↑</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="features">
+      <span class="eyebrow center">WHAT MAKES TRIBO DIFFERENT</span>
+      <h2>It's not just your run.<br/>It's <em>your clan's</em> run.</h2>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h3>Run as a clan</h3>
+          <p>Pull your friends — or your gym, your faculty, your neighborhood — into a
+             clan. Every kilometer counts toward the team.</p>
+        </article>
+
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 21h18M5 21V10l4-2v13M13 21V6l4-2v17"/><path d="M19 21V14"/>
+            </svg>
+          </div>
+          <h3>Rankings that matter</h3>
+          <p>Leaderboards by <strong>average pace</strong> or <strong>total kilometers</strong> —
+             so the small fast clan and the big patient clan can both win on their terms.</p>
+        </article>
+
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2 14 8h6l-5 4 2 7-7-4-7 4 2-7-5-4h6z"/>
+            </svg>
+          </div>
+          <h3>Volunteer runs</h3>
+          <p>Clean up streets and trails while you train. Plogging routes, group cleanups,
+             and impact tracked per clan.</p>
+        </article>
+
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <h3>Local routes</h3>
+          <p>Tagus, Monsanto, Sintra, Caparica. Built around the places your clan
+             actually runs.</p>
+        </article>
+
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <h3>GPS tracking on mobile</h3>
+          <p>Pace, splits, distance, route. Track on the phone, review on the web —
+             every kilometer feeds the clan leaderboard.</p>
+        </article>
+
+        <article class="feature">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="6"/><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5"/>
+            </svg>
+          </div>
+          <h3>Clan achievements</h3>
+          <p>Streaks, podiums, eco-runner badges. Earn them solo, share them
+             with your tribe.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- CLAN RANKING PREVIEW -->
+    <section id="clans" class="ranking-section">
+      <div class="ranking-text">
+        <span class="eyebrow">RANKINGS · UPDATED LIVE</span>
+        <h2>Two ways to climb.<br/>Same trophy.</h2>
+        <p>Big-team clans grind out kilometers. Small fast clans drop their average pace.
+           Tribo lets both fight for the top — pick your metric, defend your rank.</p>
+        <ul class="check-list">
+          <li>Weekly resets, season-long titles</li>
+          <li>Per-clan dashboards and member contributions</li>
+          <li>Verified events count toward an Impact rank</li>
+        </ul>
+        <a href="/app/" class="btn btn-primary">See the live board</a>
+      </div>
+
+      <div class="ranking-card">
+        <div class="ranking-head">
+          <strong>Top clans · this week</strong>
+          <div class="ranking-tabs">
+            <button class="active">Avg pace</button>
+            <button>Total km</button>
+            <button>Impact</button>
+          </div>
+        </div>
+        <ul id="ranking-list" class="ranking-list">
+          <li class="ranking-loading">Loading…</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- VOLUNTEER -->
+    <section id="volunteer" class="volunteer">
+      <div class="volunteer-card">
+        <span class="eyebrow">RUN WITH PURPOSE</span>
+        <h2>Show up.<br/>Get verified.<br/>Earn clan points.</h2>
+        <p>
+          Most fitness apps pretend the city around you doesn't exist. Tribo doesn't.
+          Volunteer events are run by 5 elected staff members from the community —
+          they check participants in on-site so the points your clan earns are real.
+        </p>
+        <p>
+          Five staff slots, twenty participant slots, no self-reported numbers.
+          Staff get a 10% point bonus for the responsibility, and you become
+          eligible to be staff after three verified events of your own.
+        </p>
+        <a href="/app/" class="btn btn-primary">Join a cleanup run</a>
+      </div>
+      <div class="volunteer-art">
+        <div class="badge">+110 pts</div>
+        <div class="badge badge-2">Staff role</div>
+        <div class="badge badge-3">5 verifiers</div>
+        <svg viewBox="0 0 200 200" width="100%" height="100%" aria-hidden="true">
+          <defs>
+            <radialGradient id="leafGrad" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#00D97A"/>
+              <stop offset="100%" stop-color="#008F4F"/>
+            </radialGradient>
+          </defs>
+          <circle cx="100" cy="100" r="86" fill="url(#leafGrad)"/>
+          <path d="M100 40 C70 70 60 100 60 130 a40 40 0 0 0 80 0 C140 100 130 70 100 40 Z"
+                fill="#FFFFFF" opacity="0.18"/>
+          <path d="M100 60 C82 80 75 100 75 122 a25 25 0 0 0 50 0 C125 100 118 80 100 60 Z"
+                fill="#FFFFFF" opacity="0.28"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how" class="how">
+      <span class="eyebrow center">HOW IT WORKS</span>
+      <h2>Four steps. No friction.</h2>
+      <ol class="steps">
+        <li><span>1</span><h3>Create or join a clan</h3><p>Up to 20 members. Pick a tag, a color, and a city.</p></li>
+        <li><span>2</span><h3>Track your runs</h3><p>GPS, pace, heart rate. Solo or with friends.</p></li>
+        <li><span>3</span><h3>Climb the ranking</h3><p>Average pace, total km, or volunteer impact.</p></li>
+        <li><span>4</span><h3>Run with purpose</h3><p>Plogging routes turn training into impact.</p></li>
+      </ol>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final-cta">
+      <h2>Your clan is waiting.</h2>
+      <p>Open the prototype and look around — every screen is real, every number is mocked.</p>
+      <a href="/app/" class="btn btn-primary btn-lg">Open the Tribo app</a>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="logo footer-logo">
+        <img src="/assets/TriboLogo_NoBackground.png" alt="Tribo" width="24" height="24"/>
+        <span>Tribo</span>
+      </div>
+      <p class="footer-meta">Prototype · NOVA FCT · 2026</p>
+      <p class="footer-meta">Built with Java + React + Vanilla web</p>
+    </div>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

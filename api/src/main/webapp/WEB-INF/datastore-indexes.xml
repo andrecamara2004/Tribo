@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Composite Datastore indexes required by the application.
+
+  Single-property queries use automatic indexes (no declaration needed).
+  Composite indexes (equality filter + order, or multi-property order) are
+  declared here and pushed to Datastore on deploy via the App Engine plugin.
+
+  B4-7: the first two indexes replace in-memory sorts in RunRepository.
+-->
+<datastore-indexes autoGenerate="false">
+
+  <!--
+    GET /rest/runs?scope=all + GET /rest/feed (listRecent):
+    "give me the N most recent runs across all users".
+    Without this, the code fetches ALL runs and sorts in memory.
+  -->
+  <datastore-index kind="Run" ancestor="false">
+    <property name="startedAt" direction="desc"/>
+  </datastore-index>
+
+  <!--
+    GET /rest/runs?scope=me (listByOwner) + run stats:
+    "give me the N most recent runs for a specific user".
+    Combines an equality filter (userId) with a sort (startedAt DESC).
+  -->
+  <datastore-index kind="Run" ancestor="false">
+    <property name="userId"    direction="asc"/>
+    <property name="startedAt" direction="desc"/>
+  </datastore-index>
+
+</datastore-indexes>

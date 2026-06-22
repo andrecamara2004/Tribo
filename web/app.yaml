@@ -1,0 +1,23 @@
+runtime: nodejs22   # required field; not actually run for pure static serving
+service: web
+
+automatic_scaling:
+  max_instances: 2
+
+handlers:
+  # Serve hashed asset files (JS/CSS/images) directly from dist/assets.
+  - url: /assets
+    static_dir: dist/assets
+    secure: always
+
+  # Serve any other real file at the root (favicon, vite.svg, etc.).
+  - url: /(.*\.(ico|png|svg|txt|json|webmanifest))$
+    static_files: dist/\1
+    upload: dist/.*\.(ico|png|svg|txt|json|webmanifest)$
+    secure: always
+
+  # SPA catch-all: every other path serves index.html so React Router works.
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+
+    <runtime>java21</runtime>
+    <threadsafe>true</threadsafe>
+
+    <system-properties>
+        <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
+    </system-properties>
+
+    <!--
+      SEC-1 (done): JWT_SECRET is NO LONGER stored here. It is resolved at runtime
+      from Google Secret Manager (secret "tribo-jwt-secret", latest version) by
+      JwtIssuer; the App Engine default service account has secretAccessor on it.
+      The previously-committed value was rotated out — it no longer signs valid
+      tokens. For LOCAL dev (no Secret Manager), set a JWT_SECRET env var in your
+      shell before `mvn appengine:run` (see api/README.md).
+
+      Only non-secret config lives here now.
+    -->
+    <env-variables>
+        <env-var name="JWT_ISSUER" value="tribo-api"/>
+        <!-- BOOTSTRAP_ADMIN_EMAIL is intentionally unset. Set it temporarily
+             (to an email you control, with a strong password) only when you need
+             to seed the first SYSADMIN, then unset and redeploy. See
+             docs/sprint-2-backlog.md D-1. -->
+    </env-variables>
+
+    <!-- B4-8: cap to 2 instances to silence the deploy warning and bound cost
+         during beta. One instance handles all expected load; a second acts as
+         a buffer for short bursts without requiring a scaling event. -->
+    <automatic-scaling>
+        <max-instances>2</max-instances>
+    </automatic-scaling>
+
+</appengine-web-app>
