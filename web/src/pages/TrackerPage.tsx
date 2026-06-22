@@ -1,11 +1,12 @@
 // src/pages/TrackerPage.tsx
-// Sprint 3 Phase 2: the "Last run" screen wired to real data. Shows the caller's
-// most recent run (phone mockup + per-km splits) and a manual log-run form —
-// mobile GPS logging isn't built yet, so the form lets you post a finished run
-// (D-4) from the web to see the feature end-to-end.
+// Sprint 3 Phase 2: the "Runs" screen wired to real data. Shows the caller's
+// most recent run (phone mockup + per-km splits), the full history of their
+// previous runs, and a manual log-run form — mobile GPS logging isn't built
+// yet, so the form lets you post a finished run (D-4) from the web to see the
+// feature end-to-end.
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { getLastRun, getMyStats, logRun, type Run, type RunStats } from "../api/runs";
+import { getMyStats, listRuns, logRun, type Run, type RunStats } from "../api/runs";
 import { setWeeklyGoal } from "../api/users";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
@@ -23,7 +24,7 @@ const emptyForm = {
 
 export function TrackerPage() {
   const { profile, refreshProfile } = useAuth();
-  const [last, setLast] = useState<Run | null>(null);
+  const [runs, setRuns] = useState<Run[]>([]);
   const [stats, setStats] = useState<RunStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -54,9 +55,9 @@ export function TrackerPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [l, s] = await Promise.all([getLastRun(), getMyStats()]);
+        const [list, s] = await Promise.all([listRuns("me"), getMyStats()]);
         if (!cancelled) {
-          setLast(l);
+          setRuns(list);
           setStats(s);
         }
       } catch {
@@ -93,8 +94,8 @@ export function TrackerPage() {
         routeType: form.routeType,
         startedAt: new Date().toISOString(),
       });
-      const [l, s] = await Promise.all([getLastRun(), getMyStats()]);
-      setLast(l);
+      const [list, s] = await Promise.all([listRuns("me"), getMyStats()]);
+      setRuns(list);
       setStats(s);
       setForm({ ...emptyForm });
       setShowForm(false);
@@ -105,6 +106,10 @@ export function TrackerPage() {
     }
   }
 
+  // The most recent run is featured (phone mockup + splits); the rest fill the
+  // history list below.
+  const last = runs[0] ?? null;
+  const previous = runs.slice(1);
   const fastest = last && last.splits.length
     ? Math.min(...last.splits.map((s) => s.durationSeconds))
     : 0;
@@ -115,7 +120,7 @@ export function TrackerPage() {
     <Shell>
       <div className="topbar">
         <div>
-          <h1>Last run</h1>
+          <h1>Runs</h1>
           <div className="sub">Synced runs from your account · live tracking happens in the mobile app</div>
         </div>
         <div className="right">
@@ -185,6 +190,7 @@ export function TrackerPage() {
           </p>
         </div>
       ) : (
+        <>
         <div className="tracker-layout">
           <div className="phone">
             <div className="phone-notch" />
@@ -297,6 +303,34 @@ export function TrackerPage() {
             })()}
           </div>
         </div>
+
+        <div className="card" style={{ marginTop: 20 }}>
+          <div className="card-title"><h3>Previous runs</h3></div>
+          {previous.length === 0 ? (
+            <p className="state-msg" style={{ margin: 0 }}>
+              This is your only run so far — log more to build your history.
+            </p>
+          ) : (
+            <div className="run-list">
+              {previous.map((run) => (
+                <div key={run.id} className="run-row">
+                  <div className="run-row-main">
+                    <strong>{run.title}</strong>
+                    <small>
+                      {formatWhen(run.startedAt)}{run.location ? ` · ${run.location}` : ""}
+                    </small>
+                  </div>
+                  <div className="run-row-stats">
+                    <span><strong>{km(run)}</strong> km</span>
+                    <span><strong>{formatPace(paceSecPerKm(run))}</strong> /km</span>
+                    <span><strong>{formatDuration(run.durationSeconds)}</strong></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </>
       )}
     </Shell>
   );

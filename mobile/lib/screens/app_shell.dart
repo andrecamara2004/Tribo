@@ -6,13 +6,15 @@ import 'clan_screen.dart';
 import 'feed_screen.dart';
 import 'find_activities_screen.dart';
 import 'profile_screen.dart';
+import 'runs_screen.dart';
 
 /// The authenticated app shell: a Material 3 bottom NavigationBar over an
 /// IndexedStack so each tab keeps its state (scroll position, map camera,
 /// loaded lists) when you switch away and back.
 ///
 /// Mobile counterpart of the web's sidebar Shell. Leads with the Feed (the
-/// social home), then Volunteer activities, the discovery map, Clan, and Profile.
+/// social home), then Runs, Volunteer activities, the discovery map, Clan, and
+/// Profile — matching the web nav, which puts Runs right after the Feed.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -29,6 +31,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     const pages = [
       FeedScreen(),
+      RunsScreen(),
       ActivitiesScreen(),
       FindActivitiesScreen(),
       ClanScreen(),
@@ -45,6 +48,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.dynamic_feed_outlined),
             selectedIcon: Icon(Icons.dynamic_feed),
             label: 'Feed',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.directions_run_outlined),
+            selectedIcon: Icon(Icons.directions_run),
+            label: 'Runs',
           ),
           NavigationDestination(
             icon: Icon(Icons.volunteer_activism_outlined),

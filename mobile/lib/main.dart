@@ -5,6 +5,7 @@ import 'api/auth.dart';
 import 'api/clans.dart';
 import 'api/feed.dart';
 import 'api/http.dart';
+import 'api/runs.dart';
 import 'api/services_scope.dart';
 import 'api/token_store.dart';
 import 'api/users.dart';
@@ -30,6 +31,7 @@ void main() {
   final usersApi = UsersApi(client);
   final clansApi = ClansApi(client);
   final feedApi = FeedApi(client);
+  final runsApi = RunsApi(client);
   final controller = AuthController(authApi: authApi, tokens: tokens);
 
   // Kick off the session bootstrap; the AuthGate shows a spinner until it lands.
@@ -41,6 +43,7 @@ void main() {
     users: usersApi,
     clans: clansApi,
     feed: feedApi,
+    runs: runsApi,
   ));
 }
 
@@ -52,6 +55,7 @@ class TriboApp extends StatelessWidget {
     required this.users,
     required this.clans,
     required this.feed,
+    required this.runs,
   });
 
   final AuthController controller;
@@ -59,6 +63,7 @@ class TriboApp extends StatelessWidget {
   final UsersApi users;
   final ClansApi clans;
   final FeedApi feed;
+  final RunsApi runs;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +72,7 @@ class TriboApp extends StatelessWidget {
       users: users,
       clans: clans,
       feed: feed,
+      runs: runs,
       child: AuthScope(
         controller: controller,
         child: MaterialApp(

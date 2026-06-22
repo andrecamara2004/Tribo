@@ -1775,6 +1775,57 @@ code {
   border-radius: 999px;
 }
 
+/* Previous runs history list (Runs page) */
+.run-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.run-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.run-row:last-child {
+  border-bottom: 0;
+}
+
+.run-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.run-row-main strong {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-row-main small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.run-row-stats {
+  display: flex;
+  gap: 18px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.run-row-stats strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* ============================================================
    WEEKLY DISTANCE BARS (Profile)
    ============================================================ */
