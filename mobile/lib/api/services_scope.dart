@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart';
 import 'activities.dart';
 import 'clans.dart';
 import 'feed.dart';
+import 'runs.dart';
 import 'users.dart';
 
 class ServicesScope extends InheritedWidget {
@@ -20,6 +21,7 @@ class ServicesScope extends InheritedWidget {
     required this.users,
     required this.clans,
     required this.feed,
+    required this.runs,
     required super.child,
   });
 
@@ -27,6 +29,7 @@ class ServicesScope extends InheritedWidget {
   final UsersApi users;
   final ClansApi clans;
   final FeedApi feed;
+  final RunsApi runs;
 
   static ServicesScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<ServicesScope>();
@@ -39,5 +42,6 @@ class ServicesScope extends InheritedWidget {
       activities != oldWidget.activities ||
       users != oldWidget.users ||
       clans != oldWidget.clans ||
-      feed != oldWidget.feed;
+      feed != oldWidget.feed ||
+      runs != oldWidget.runs;
 }
