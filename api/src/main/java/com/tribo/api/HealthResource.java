@@ -12,7 +12,7 @@ import com.tribo.api.iam.PublicEndpoint;
 /**
  * Health check endpoint.
  *
- * GET /rest/health  →  { "status": "ok" }
+ * GET /rest/health - { "status": "ok" }
  *
  * Confirms the API is deployed and Jersey + JSON serialization work.
  */

@@ -14,7 +14,7 @@ import jakarta.ws.rs.ext.Provider;
  * an entity with an Instant field (e.g. Activity.startsAt) fails with
  * "Java 8 date/time type java.time.Instant not supported by default". We register
  * the JavaTimeModule and disable WRITE_DATES_AS_TIMESTAMPS so Instants serialize
- * as ISO-8601 strings (e.g. "2027-07-01T18:00:00Z") — matching the API contract
+ * as ISO-8601 strings (e.g. "2027-07-01T18:00:00Z") - matching the API contract
  * and what the web/mobile clients parse.
  *
  * Auto-discovered via the @Provider package scan in web.xml.

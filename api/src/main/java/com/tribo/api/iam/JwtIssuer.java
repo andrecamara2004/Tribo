@@ -21,7 +21,6 @@ public class JwtIssuer {
     private static final long ACCESS_TTL_SECONDS = 15L * 60;
     private static final long REFRESH_TTL_SECONDS = 7L * 24 * 60 * 60;
 
-    // Lazy holders — populated on first use, not at class load time.
     private static volatile Algorithm algorithm;
     private static volatile String issuer;
     private static volatile JWTVerifier verifier;

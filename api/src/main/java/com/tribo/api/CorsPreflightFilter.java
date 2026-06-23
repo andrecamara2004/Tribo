@@ -15,10 +15,7 @@ import java.io.IOException;
  * Handles CORS preflight (OPTIONS) requests by short-circuiting with a 200
  * before routing tries (and fails) to match OPTIONS to a resource method.
  *
- * The Access-Control-* headers are added by CorsFilter (the response filter),
- * which DOES run on this aborted response in our environment — so we must NOT
- * add the headers here too, or they'd appear twice ("*, *") and browsers reject
- * the duplicate. Headers live in exactly one place: CorsFilter.
+ * Needed this for testing on localhost
  */
 @Provider
 @PreMatching

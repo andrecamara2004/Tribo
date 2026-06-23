@@ -17,10 +17,7 @@ import java.util.Map;
 /**
  * Platform statistics for BACKOFFICE/SYSADMIN.
  *
- * GET /rest/admin/stats — aggregate counts across all data kinds.
- *
- * B4-2: provides basic platform health numbers so backoffice staff
- * can monitor platform growth without direct Datastore access.
+ * GET /rest/admin/stats - aggregate counts across all data kinds.
  */
 @Path("/admin/stats")
 public class StatsResource {
@@ -29,10 +26,7 @@ public class StatsResource {
     private static final ActivityRepository ACTIVITIES = new ActivityRepository();
     private static final RunRepository RUNS = new RunRepository();
 
-    /**
-     * Returns aggregate counts for the platform.
-     * Uses keys-only queries where possible for efficiency.
-     */
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @AllowedRoles({ Role.BACKOFFICE, Role.SYSADMIN })
@@ -40,7 +34,8 @@ public class StatsResource {
         long totalUsers = USERS.countAll();
         long totalActivities = ACTIVITIES.countAll();
         long volunteerEvents = ACTIVITIES.countByKind("VOLUNTEER");
-        long totalRuns = RUNS.all().size(); // full scan; acceptable at this scale
+        long totalRuns = RUNS.all().size(); // full scan;
+        // full scan is acceptable for the scale of this project at this moment. In the future we might need to optimize this
 
         return Response.ok(Map.of(
                 "totalUsers", totalUsers,

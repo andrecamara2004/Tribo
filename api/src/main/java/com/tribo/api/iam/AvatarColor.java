@@ -1,10 +1,6 @@
 package com.tribo.api.iam;
 
-/**
- * Deterministic cosmetic avatar colour from a user id. Shared so a user's colour
- * is identical everywhere it appears (profile, feed authors, …). Purely visual —
- * never encodes real data.
- */
+
 public final class AvatarColor {
 
     private static final String[] PALETTE =
