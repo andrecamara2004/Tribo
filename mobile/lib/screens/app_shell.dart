@@ -57,7 +57,7 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: Icon(Icons.volunteer_activism_outlined),
             selectedIcon: Icon(Icons.volunteer_activism),
-            label: 'Volunteer',
+            label: 'Activities',
           ),
           NavigationDestination(
             icon: Icon(Icons.map_outlined),
