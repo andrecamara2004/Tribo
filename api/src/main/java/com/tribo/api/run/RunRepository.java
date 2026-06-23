@@ -21,16 +21,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Datastore access for the Run kind. Follows the Activity/User repository
- * pattern (UUID-string key, static Datastore client, hand-rolled mapping).
- *
- * Splits are stored as a list of embedded entities (the idiomatic Datastore
- * way for a small fixed-shape sub-record).
- *
- * LISTING & INDEXES: we query by an equality on `userId` (automatic
- * single-property index) and sort newest-first IN MEMORY. This deliberately
- * avoids a composite (userId, startedAt) index — run counts are small at this
- * scale. Revisit with a composite index + cursor paging if that changes.
+ * Datastore access for the Run kind. 
  */
 public class RunRepository {
 
@@ -75,19 +66,19 @@ public class RunRepository {
         return Optional.ofNullable(e).map(this::toRun);
     }
 
-    /** A user's runs, newest first, capped at {@code limit}. */
+    /** A user's runs, newest first */
     public List<Run> listByOwner(String userId, int limit) {
         List<Run> runs = queryByOwner(userId);
         runs.sort(NEWEST_FIRST);
         return runs.size() > limit ? runs.subList(0, limit) : runs;
     }
 
-    /** The user's single most recent run, if any. */
+    /** The user's single most recent run */
     public Optional<Run> findLastByOwner(String userId) {
         return queryByOwner(userId).stream().max(Comparator.comparing(Run::startedAt));
     }
 
-    /** Every run (for clan-ranking aggregation). Unsorted. */
+    /** Every run */
     public List<Run> all() {
         Query<Entity> q = Query.newEntityQueryBuilder().setKind(KIND).build();
         QueryResults<Entity> results = DATASTORE.run(q);
@@ -98,11 +89,6 @@ public class RunRepository {
         return runs;
     }
 
-    /**
-     * Most recent runs across all users (for the global feed), newest first.
-     * Uses the (startedAt DESC) composite index — only fetches {@code limit}
-     * entities from Datastore instead of scanning all runs in memory.
-     */
     public List<Run> listRecent(int limit) {
         Query<Entity> q = Query.newEntityQueryBuilder()
                 .setKind(KIND)
@@ -117,7 +103,6 @@ public class RunRepository {
         return runs;
     }
 
-    /** Runs by any of the given owners (e.g. a clan), newest first, capped. */
     public List<Run> listByOwners(Collection<String> userIds, int limit) {
         List<Run> runs = new ArrayList<>();
         for (String uid : userIds) {
@@ -127,7 +112,6 @@ public class RunRepository {
         return runs.size() > limit ? runs.subList(0, limit) : runs;
     }
 
-    // --- internals -----------------------------------------------------------
 
     private List<Run> queryByOwner(String userId) {
         Query<Entity> q = Query.newEntityQueryBuilder()

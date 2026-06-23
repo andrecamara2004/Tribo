@@ -40,15 +40,10 @@ import jakarta.ws.rs.core.Context;
 /**
  * Authentication endpoints.
  *
- * POST /rest/auth/register — create a new END_USER account. (B-6)
- * POST /rest/auth/login — exchange credentials for tokens. (B-7)
- * POST /rest/auth/refresh — exchange a refresh token for a new access token.
- * (B-7)
- * POST /rest/auth/logout — revoke a refresh token. (B-8)
- *
- * Public (no auth required): the B-5 JwtAuthFilter skips the whole class via
- * @PublicEndpoint. Each endpoint authenticates by what it carries
- * (credentials, or a refresh token), not by an access-token header.
+ * POST /rest/auth/register - create a new END_USER account.
+ * POST /rest/auth/login - Login - exchange credentials for tokens.
+ * POST /rest/auth/refresh - exchange a refresh token for a new access token.
+ * POST /rest/auth/logout - revoke a refresh token.
  */
 @Path("/auth")
 @PublicEndpoint
@@ -63,6 +58,7 @@ public class AuthResource {
 
     // Dummy hash so the "no such user" login path still runs a bcrypt verify,
     // keeping response timing independent of whether the email exists.
+    // TODO need to know why this is still here
     private static final String DUMMY_HASH = PasswordHasher.hash("dummy-password-placeholder");
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -70,7 +66,6 @@ public class AuthResource {
     private static final int MIN_AGE = 13;
     private static final int MAX_AGE = 120;
 
-    // --- B-6: register ---------------------------------------------------
 
     @POST
     @Path("/register")
@@ -112,9 +107,9 @@ public class AuthResource {
             throw new ConflictException("An account with this email already exists.");
         }
 
-        // D-1: self-selected role, constrained server-side.
         Role role = resolveRequestedRole(req.role);
         boolean verified;
+        //bootstrap sysadmin
         String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
         if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
             // One-time seed: the configured email is created as a verified
@@ -140,8 +135,8 @@ public class AuthResource {
                 Instant.now(),
                 false,
                 verified,
-                null, // new users start without a clan (D-3)
-                0.0 // no weekly goal yet (Phase 6)
+                null, // new users start without a clan 
+                0.0 // no weekly goal yet
         );
         USERS.save(user);
 
@@ -154,15 +149,11 @@ public class AuthResource {
                 .build();
     }
 
-    /** Roles a user may pick at registration. Privileged roles are excluded. */
+    /** Roles a user may pick at registration. Privileged roles are excluded (BACKOFFICE and SYSADMIN). */
     private static final java.util.Set<Role> SELF_REGISTERABLE = java.util.EnumSet.of(Role.END_USER,
             Role.ACTIVITY_MANAGER, Role.PARTNER);
 
-    /**
-     * Parse and validate the requested role. Null/blank defaults to END_USER.
-     * An unknown role is a 400; a known-but-privileged role (BACKOFFICE,
-     * SYSADMIN) is a 403 — those are never self-assignable.
-     */
+
     private static Role resolveRequestedRole(String requested) {
         if (requested == null || requested.isBlank()) {
             return Role.END_USER;
@@ -178,8 +169,6 @@ public class AuthResource {
         }
         return role;
     }
-
-    // --- B-7: login ------------------------------------------------------
 
     @POST
     @Path("/login")
@@ -223,8 +212,6 @@ public class AuthResource {
                 "verified", user.verified())).build();
     }
 
-    // --- B-7: refresh (+ B-8 revocation guard) ---------------------------
-
     @POST
     @Path("/refresh")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -246,7 +233,7 @@ public class AuthResource {
             throw new UnauthorizedException("Not a refresh token.");
         }
 
-        // B-8: reject a refresh token that has been logged out.
+        //reject a refresh token that has been logged out.
         if (REVOKED.isRevoked(decoded.getId())) {
             throw new UnauthorizedException("Refresh token has been revoked.");
         }
@@ -273,8 +260,6 @@ public class AuthResource {
                 "expiresIn", JWT.accessTokenTtlSeconds())).build();
     }
 
-    // --- B-8: logout -----------------------------------------------------
-
     @POST
     @Path("/logout")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -288,8 +273,7 @@ public class AuthResource {
         try {
             decoded = JWT.verify(req.refreshToken);
         } catch (JWTVerificationException e) {
-            // Already invalid or expired — it can't be used anyway, so logout
-            // is a no-op success. Idempotent and forgiving.
+            // Already invalid or expired - it cannot be used anyway, so logout
             return Response.noContent().build();
         }
 

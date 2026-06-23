@@ -10,15 +10,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Derived running statistics for a user, computed on the fly from their runs
- * (UTC day boundaries). Nothing here is stored — it's recomputed per request,
- * so it can never drift from the underlying runs.
+ * Derived running statistics for a user
  *
- *   weeklyKm        — km per day for the current week, Monday→Sunday (index 0 = Mon)
- *   monthKm         — total km in the current calendar month
- *   monthRuns       — number of runs in the current calendar month
- *   avgPaceSecPerKm — all-time average pace (seconds per km), or null if no runs
- *   streak          — consecutive days with ≥1 run, ending today or yesterday
+ *   weeklyKm        - km per day for the current week, Monday to Sunday (index 0 = Mon)
+ *   monthKm         - total km in the current calendar month
+ *   monthRuns       - number of runs in the current calendar month
+ *   avgPaceSecPerKm - all-time average pace (seconds per km), or null if no runs
+ *   streak          - consecutive days with >=1 run, ending today or yesterday
  */
 public record RunStats(
         double[] weeklyKm,

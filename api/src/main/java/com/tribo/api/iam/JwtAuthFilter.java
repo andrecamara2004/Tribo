@@ -14,21 +14,6 @@ import java.io.IOException;
 
 /**
  * Validates JWT access tokens for every authenticated request.
- *
- * Behavior:
- *   - If the resource method or class is annotated @PublicEndpoint, skip.
- *   - Otherwise, require Authorization: Bearer <token>.
- *   - Verify the token (signature, expiry, issuer) via JwtIssuer.
- *   - Reject refresh tokens (typ=refresh) — only access tokens are valid here.
- *   - On success, attach a JwtSecurityContext AND stash the AuthenticatedUser
- *     as the request property "tribo.user" for cast-free retrieval.
- *   - On failure, throw UnauthorizedException — ApiExceptionMapper turns it
- *     into a 401 with the standard error envelope.
- *
- * NOT @PreMatching so it has access to the matched resource method's
- * annotations (needed for @PublicEndpoint check via name binding).
- *
- * Priority AUTHENTICATION puts it before any custom request filters.
  */
 @Provider
 @Priority(Priorities.AUTHENTICATION)

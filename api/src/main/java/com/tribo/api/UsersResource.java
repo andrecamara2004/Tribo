@@ -38,8 +38,8 @@ import java.util.Optional;
 /**
  * User endpoints.
  *
- * GET /rest/users/me — full profile of the caller (Sprint 3).
- * POST /rest/users/{id}/verify — backoffice verifies a self-registered
+ * GET /rest/users/me - full profile of the caller.
+ * POST /rest/users/{id}/verify - backoffice verifies a self-registered
  * ACTIVITY_MANAGER / PARTNER so they may act.
  *
  * Authentication is enforced by JwtAuthFilter. /me is any authenticated role;
@@ -52,8 +52,7 @@ public class UsersResource {
     private static final ClanRepository CLANS = new ClanRepository();
     private static final RunRepository RUNS = new RunRepository();
 
-    // --- GET /users — list all users (backoffice console, B4-1) --------------
-
+    // Get all users
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @AllowedRoles({ Role.BACKOFFICE, Role.SYSADMIN })
@@ -73,7 +72,7 @@ public class UsersResource {
         return Response.ok(Map.of("items", items)).build();
     }
 
-    // --- GET /users/me — full profile (Sprint 3) -----------------------------
+    // Get full profile
 
     @GET
     @Path("/me")
@@ -105,7 +104,7 @@ public class UsersResource {
         return Response.ok(body).build();
     }
 
-    // --- PUT /users/me/goal — set the weekly distance goal (Phase 6) ---------
+    // Set weekly distance goal
 
     @PUT
     @Path("/me/goal")
@@ -117,10 +116,10 @@ public class UsersResource {
         if (km < 0)
             throw new ValidationException("weeklyGoalKm cannot be negative.");
         USERS.setWeeklyGoal(caller.userId(), km);
-        return me(ctx); // echo the updated profile
+        return me(ctx); 
     }
 
-    // --- GET /users/me/stats — derived running stats (Sprint 3 Phase 2) ------
+    // Get running stats
 
     @GET
     @Path("/me/stats")
@@ -131,7 +130,7 @@ public class UsersResource {
         return Response.ok(RunStats.from(runs, Instant.now())).build();
     }
 
-    // --- POST /users/{id}/verify (backoffice, D-1) ---------------------------
+    // Backoffice verifies user
 
     @POST
     @Path("/{id}/verify")
@@ -146,7 +145,7 @@ public class UsersResource {
                 "verified", updated.verified())).build();
     }
 
-    // --- POST /users/{id}/suspend (backoffice, B4-1) -------------------------
+    // Backoffice suspends user
     @POST
     @Path("/{id}/suspend")
     @Produces(MediaType.APPLICATION_JSON)
@@ -159,7 +158,7 @@ public class UsersResource {
                 "suspended", updated.suspended())).build();
     }
 
-    // --- POST /users/{id}/unsuspend (backoffice, B4-1) -----------------------
+    // Backoffice unsuspends user
     @POST
     @Path("/{id}/unsuspend")
     @Produces(MediaType.APPLICATION_JSON)
@@ -172,7 +171,7 @@ public class UsersResource {
                 "suspended", updated.suspended())).build();
     }
 
-    // --- helpers -------------------------------------------------------------
+    // helpers
 
     static AuthenticatedUser authUser(ContainerRequestContext ctx) {
         Object u = ctx.getProperty(JwtAuthFilter.USER_PROPERTY);
@@ -182,7 +181,6 @@ public class UsersResource {
         return user;
     }
 
-    /** "@" + the email local-part, lowercased and stripped to alphanumerics. */
     private static String handleFor(String email) {
         int at = email.indexOf('@');
         String local = at > 0 ? email.substring(0, at) : email;
@@ -190,7 +188,6 @@ public class UsersResource {
         return "@" + (cleaned.isEmpty() ? "user" : cleaned);
     }
 
-    /** Earned badges derived from real run + volunteer data (Phase 6). */
     private static List<Achievement> achievementsFor(RunStats s, VolunteerStats.Summary vol) {
         List<Achievement> out = new ArrayList<>();
         if (s.avgPaceSecPerKm() != null && s.avgPaceSecPerKm() < 300) {
@@ -211,9 +208,7 @@ public class UsersResource {
         return out;
     }
 
-    /**
-     * Subset of clan fields embedded in the profile (no memberCount needed here).
-     */
+
     public record ClanRef(String id, String name, String tag, String color) {
     }
 
@@ -225,7 +220,7 @@ public class UsersResource {
         public Double weeklyGoalKm;
     }
 
-    /** Profile response — explicitly omits passwordHash and other secrets. */
+    /** Profile response - hides passwordHash and other secrets. */
     public record MeResponse(
             String userId, String email, String fullName, int age, String role,
             boolean verified, String profileVisibility, String createdAt,

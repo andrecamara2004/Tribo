@@ -30,15 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Run logging + discovery endpoints (Sprint 3 Phase 2, D-4).
- *
- *   POST /rest/runs            log a finished run (owner = caller)
- *   GET  /rest/runs            list (scope=me|clan), newest first
- *   GET  /rest/runs/{id}       detail
- *   GET  /rest/runs/me/last    the caller's most recent run
- *
- * Per-user stats live at GET /rest/users/me/stats (UsersResource), computed by
- * RunStats. Authentication is enforced for the whole class by JwtAuthFilter.
+ * Run logging + discovery endpoints
  */
 @Path("/runs")
 public class RunResource {
@@ -49,8 +41,8 @@ public class RunResource {
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 100;
 
-    // --- log a run -----------------------------------------------------------
 
+    //Log a run
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
@@ -63,8 +55,8 @@ public class RunResource {
                 .build();
     }
 
-    // --- list ----------------------------------------------------------------
 
+    //List
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response list(@Context ContainerRequestContext ctx,
@@ -87,8 +79,8 @@ public class RunResource {
         return Response.ok(Map.of("items", items)).build();
     }
 
-    // --- last run (must precede /{id} so "me" isn't taken as an id) ----------
 
+    //Last run
     @GET
     @Path("/me/last")
     @Produces(MediaType.APPLICATION_JSON)
@@ -99,8 +91,7 @@ public class RunResource {
         return Response.ok(run).build();
     }
 
-    // --- detail --------------------------------------------------------------
-
+    //Detail
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -110,7 +101,6 @@ public class RunResource {
         return Response.ok(run).build();
     }
 
-    // --- helpers -------------------------------------------------------------
 
     static AuthenticatedUser authUser(ContainerRequestContext ctx) {
         Object u = ctx.getProperty(JwtAuthFilter.USER_PROPERTY);
