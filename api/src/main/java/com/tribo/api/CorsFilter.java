@@ -8,6 +8,15 @@ import jakarta.ws.rs.ext.Provider;
 
 import java.io.IOException;
 
+/**
+ * Adds CORS headers to every outgoing response.
+ *
+ * Runs on every response, including the aborted OPTIONS responses produced by
+ * CorsPreflightFilter
+ *
+ * @Provider makes Jersey auto-discover this class via the package scan
+ * configured in web.xml.
+ */
 @Provider
 public class CorsFilter implements ContainerResponseFilter {
 
