@@ -33,7 +33,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthScope.of(context).login(_email.text.trim(), _password.text);
-      // On success the AuthGate swaps to ActivitiesScreen automatically.
+      // On success AuthGate (the first route) rebuilds to AppShell underneath
+      // this pushed screen. Pop back to it so the logged-in UI is actually
+      // visible — otherwise this login route stays on top and the user sees no
+      // change until a cold restart resets the navigator stack.
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiError catch (e) {
       setState(() => _error = e.message);
     } catch (_) {

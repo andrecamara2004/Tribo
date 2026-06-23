@@ -57,9 +57,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         age: age,
         role: _role,
       ));
-      // On success the AuthGate swaps to ActivitiesScreen; pop this route so a
-      // back press doesn't return to the now-stale register form.
-      if (mounted) Navigator.of(context).pop();
+      // On success AuthGate (the first route) rebuilds to AppShell underneath.
+      // Pop ALL pushed routes back to it — not just one — so a Landing→Login→
+      // Register path doesn't leave the login screen on top, and a back press
+      // can't return to the now-stale register form.
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiError catch (e) {
       setState(() => _error = e.message);
     } catch (_) {

@@ -12,7 +12,7 @@ Exact, timed click-path for the plenary demo. Two demos, ~1 minute each (slides 
 
 | Role | Email | Password | Use |
 |------|-------|----------|-----|
-| SYSADMIN / backoffice | `ar.camara@campus.fct.unl.pt` | `TriboSysadmin2026` | Approves activities, user mgmt |
+| SYSADMIN / backoffice | `admin@gmail.com` | `TriboSysadmin2026` | Approves activities, user mgmt |
 | ACTIVITY_MANAGER | _create before the talk_ (see Prep) | _your choice_ | Creates the activity to be approved |
 
 > There is no password-reset endpoint — keep the sysadmin password safe; don't change it before the demo.
