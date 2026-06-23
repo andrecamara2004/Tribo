@@ -1,6 +1,6 @@
 # Tribo — deploy & run cheatsheet
 
-Shell: **PowerShell**. Run each block from the repo root unless noted.
+Powershell
 
 ## 0. One-time prerequisites
 
@@ -18,7 +18,7 @@ gcloud config set project tribo-497810
 
 ```powershell
 cd api
-mvn clean package          # produces target/tribo-api.war
+mvn clean package        
 mvn appengine:deploy
 cd ..
 ```
@@ -48,8 +48,7 @@ Live at: https://web-dot-tribo-497810.ew.r.appspot.com
 
 ## 3. Run mobile on a fast emulator
 
-The default emulator is slow; these flags make it smooth (host GPU, more
-RAM/cores, cold boot, 0.6 window scale). `adb`/`emulator` aren't on PATH.
+Had problems running on a default emulator because it was very slow so I had to find a way to make a faster emulator. Gave it more cores.
 
 **Terminal 1 — start the emulator** (leave it open):
 ```powershell
@@ -63,11 +62,3 @@ cd mobile
 flutter pub get
 flutter run -d emulator-5554
 ```
-
-While `flutter run` is attached: **r** = hot reload, **R** = hot restart, **q** = quit.
-The app targets the live backend above — no local API needed.
-
-> Demo account (live backend): `clandemo_1781860078@example.com` / `Passw0rd23`
-> (or tap **Register** to make a fresh one).
-
-See `mobile/RUN.md` for emulator troubleshooting (off-screen window, offline device).
