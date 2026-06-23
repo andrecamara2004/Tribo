@@ -21,7 +21,7 @@ import java.util.Set;
 public record RunStats(
         double[] weeklyKm,
         double monthKm,
-        int monthRun-s,
+        int monthRuns,
         Integer avgPaceSecPerKm,
         int streak
 ) {
