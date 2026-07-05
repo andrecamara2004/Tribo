@@ -48,15 +48,16 @@ function ClanChat({ clanId, myClanName, myClanColor }: {
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  async function load() {
-    try {
-      const msgs = await getClanMessages(clanId);
-      setMessages(msgs);
-    } catch { /* non-fatal */ }
-  }
-
   useEffect(() => {
-    load();
+    async function load() {
+      try {
+        const msgs = await getClanMessages(clanId);
+        setMessages(msgs);
+      } catch { /* non-fatal */ }
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
     const interval = setInterval(load, 5000); // poll every 5 s
     return () => clearInterval(interval);
   }, [clanId]);
@@ -328,6 +329,7 @@ export function ClanPage() {
 
   // Keep tab in sync if the user joins/leaves a clan.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab(myClanId ? "chat" : "top");
   }, [myClanId]);
 
