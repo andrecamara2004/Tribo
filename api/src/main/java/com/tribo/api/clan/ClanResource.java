@@ -6,6 +6,7 @@ import com.tribo.api.activity.EventKind;
 import com.tribo.api.activity.Participation;
 import com.tribo.api.activity.ParticipationRepository;
 import com.tribo.api.activity.ParticipationRole;
+import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.UnauthorizedException;
 import com.tribo.api.error.ValidationException;
@@ -14,6 +15,7 @@ import com.tribo.api.iam.JwtAuthFilter;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.run.Run;
 import com.tribo.api.run.RunRepository;
+import com.tribo.api.iam.User;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -42,6 +44,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -49,11 +52,11 @@ import java.util.regex.Pattern;
 /**
  * Clan endpoints (Sprint 3 Phase 1, D-3).
  *
- *   POST /rest/clans            create + auto-join (any authenticated user)
- *   GET  /rest/clans            list with member counts
- *   GET  /rest/clans/{id}       detail with member count
- *   POST /rest/clans/{id}/join  caller joins (switches clans)
- *   POST /rest/clans/leave      caller leaves
+ * POST /rest/clans create + auto-join (any authenticated user)
+ * GET /rest/clans list with member counts
+ * GET /rest/clans/{id} detail with member count
+ * POST /rest/clans/{id}/join caller joins (switches clans)
+ * POST /rest/clans/leave caller leaves
  *
  * Membership is the user's nullable clanId (one clan per user); there is no
  * separate membership entity. Authentication is enforced for the whole class by
@@ -64,6 +67,7 @@ import java.util.regex.Pattern;
 public class ClanResource {
 
     private static final ClanRepository CLANS = new ClanRepository();
+    private static final ClanMessageRepository MESSAGES = new ClanMessageRepository();
     private static final UserRepository USERS = new UserRepository();
     private static final RunRepository RUNS = new RunRepository();
     private static final ParticipationRepository PARTICIPANTS = new ParticipationRepository();
@@ -83,6 +87,10 @@ public class ClanResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response create(@Context ContainerRequestContext ctx, ClanRequest req) {
         AuthenticatedUser caller = authUser(ctx);
+        User me = USERS.findById(caller.userId()).orElseThrow(() -> new NotFoundException("User not found."));
+        if (me.clanId() != null) {
+            throw new ValidationException("You are already in a clan.");
+        }
         Validated v = validate(req);
 
         String id = UUID.randomUUID().toString();
@@ -113,9 +121,11 @@ public class ClanResource {
     @Path("/ranking")
     @Produces(MediaType.APPLICATION_JSON)
     public Response ranking(@QueryParam("metric") @DefaultValue("avgPace") String metric,
-                            @QueryParam("period") @DefaultValue("all") String period) {
-        if (!METRICS.contains(metric)) throw new ValidationException("Unknown metric: " + metric);
-        if (!PERIODS.contains(period)) throw new ValidationException("Unknown period: " + period);
+            @QueryParam("period") @DefaultValue("all") String period) {
+        if (!METRICS.contains(metric))
+            throw new ValidationException("Unknown metric: " + metric);
+        if (!PERIODS.contains(period))
+            throw new ValidationException("Unknown period: " + period);
 
         List<Clan> clans = CLANS.list();
 
@@ -127,7 +137,8 @@ public class ClanResource {
             List<String> ids = USERS.findIdsByClan(c.id());
             members.put(c.id(), ids.size());
             aggs.put(c.id(), new Agg());
-            for (String uid : ids) userClan.put(uid, c.id());
+            for (String uid : ids)
+                userClan.put(uid, c.id());
         }
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -136,7 +147,8 @@ public class ClanResource {
 
         for (Run r : RUNS.all()) {
             String cid = userClan.get(r.userId());
-            if (cid == null) continue;
+            if (cid == null)
+                continue;
             Agg a = aggs.get(cid);
             a.meters += r.distanceMeters();
             a.seconds += r.durationSeconds();
@@ -153,9 +165,11 @@ public class ClanResource {
         Map<String, Activity> actCache = new HashMap<>();
         for (Participation p : PARTICIPANTS.listAll()) {
             String cid = userClan.get(p.userId());
-            if (cid == null) continue;
+            if (cid == null)
+                continue;
             Activity act = actCache.computeIfAbsent(p.activityId(), id -> ACTIVITIES.findById(id).orElse(null));
-            if (act == null || act.eventKind() != EventKind.VOLUNTEER) continue;
+            if (act == null || act.eventKind() != EventKind.VOLUNTEER)
+                continue;
             Agg a = aggs.get(cid);
             a.volEvents++;
             a.volPoints += p.role() == ParticipationRole.STAFF ? act.pointsStaff() : act.pointsParticipant();
@@ -210,7 +224,9 @@ public class ClanResource {
         return Math.round(v * 10.0) / 10.0;
     }
 
-    /** ISO week label, e.g. "2026-W23" (week-based year + week-of-week-based-year). */
+    /**
+     * ISO week label, e.g. "2026-W23" (week-based year + week-of-week-based-year).
+     */
     private static String isoWeek(LocalDate d) {
         return String.format("%d-W%02d",
                 d.get(IsoFields.WEEK_BASED_YEAR), d.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
@@ -229,7 +245,7 @@ public class ClanResource {
 
     /** A computed, not-yet-ranked clan row. */
     private record RankRow(Clan clan, int members, double totalKm, double monthlyKm, double weeklyKm,
-                           Integer avgPaceSecPerKm, int consistencyPct, long volunteerPoints, int volunteerEvents) {
+            Integer avgPaceSecPerKm, int consistencyPct, long volunteerPoints, int volunteerEvents) {
         double distanceFor(String period) {
             return switch (period) {
                 case "week" -> weeklyKm;
@@ -258,6 +274,80 @@ public class ClanResource {
         }
     }
 
+    // --- chat: list messages -------------------------------------------------
+
+    @GET
+    @Path("/{id}/messages")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response listMessages(@Context ContainerRequestContext ctx, @PathParam("id") String clanId) {
+        AuthenticatedUser caller = authUser(ctx);
+        // Only clan members may read the chat.
+        User me = USERS.findById(caller.userId()).orElseThrow(() -> new NotFoundException("User not found."));
+
+        if (!clanId.equals(me.clanId())) {
+            throw new ForbiddenException("You are not a member of this clan.");
+        }
+        CLANS.findById(clanId).orElseThrow(() -> new NotFoundException("No clan with id " + clanId + "."));
+
+        List<Map<String, Object>> out = MESSAGES.listByClan(clanId).stream()
+                .map(m -> {
+                    Map<String, Object> map = new java.util.LinkedHashMap<>();
+                    map.put("id", m.id());
+                    map.put("userId", m.userId());
+                    map.put("fullName", m.fullName());
+                    map.put("text", m.text());
+                    map.put("sentAt", m.sentAt().toString());
+                    return map;
+                })
+                .toList();
+        return Response.ok(Map.of("messages", out)).build();
+    }
+
+    // --- chat: send message --------------------------------------------------
+
+    @POST
+    @Path("/{id}/messages")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response sendMessage(@Context ContainerRequestContext ctx, @PathParam("id") String clanId,
+            Map<String, String> body) {
+        AuthenticatedUser caller = authUser(ctx);
+        // Only clan members may post.
+        User me = USERS.findById(caller.userId()).orElseThrow(() -> new NotFoundException("User not found."));
+
+        if (!clanId.equals(me.clanId())) {
+            throw new ForbiddenException("You are not a member of this clan.");
+        }
+        CLANS.findById(clanId).orElseThrow(() -> new NotFoundException("No clan with id " + clanId + "."));
+
+        String text = body == null ? null : body.get("text");
+        if (text == null || text.isBlank()) {
+            throw new ValidationException("Message text is required.");
+        }
+        text = text.trim();
+        if (text.length() > 500) {
+            throw new ValidationException("Message must be at most 500 characters.");
+        }
+
+        ClanMessage message = new ClanMessage(
+                UUID.randomUUID().toString(),
+                clanId,
+                caller.userId(),
+                me.fullName(),
+                text,
+                Instant.now());
+        MESSAGES.save(message);
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("id", message.id());
+        out.put("userId", message.userId());
+        out.put("fullName", message.fullName());
+        out.put("text", message.text());
+        out.put("sentAt", message.sentAt().toString());
+
+        return Response.status(Response.Status.CREATED).entity(out).build();
+    }
+
     // --- detail --------------------------------------------------------------
 
     @GET
@@ -276,9 +366,17 @@ public class ClanResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response join(@Context ContainerRequestContext ctx, @PathParam("id") String id) {
         AuthenticatedUser caller = authUser(ctx);
+        User me = USERS.findById(caller.userId()).orElseThrow(() -> new NotFoundException("User not found."));
+        if (me.clanId() != null) {
+            throw new ValidationException("You are already in a clan.");
+        }
+        long memberCount = USERS.countByClan(id);
+        if (memberCount >= 50) {
+            throw new ValidationException("This clan already has the maximum of 50 members.");
+        }
         Clan clan = CLANS.findById(id)
                 .orElseThrow(() -> new NotFoundException("No clan with id " + id + "."));
-        USERS.setClan(caller.userId(), id); // idempotent; switches if in another clan
+        USERS.setClan(caller.userId(), id);
         return Response.ok(view(clan)).build();
     }
 
@@ -290,6 +388,30 @@ public class ClanResource {
         AuthenticatedUser caller = authUser(ctx);
         USERS.setClan(caller.userId(), null); // idempotent when not in a clan
         return Response.noContent().build();
+    }
+
+    // --- members -------------------------------------------------------------
+
+    @GET
+    @Path("/{id}/members")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getMembers(@PathParam("id") String id) {
+        CLANS.findById(id).orElseThrow(() -> new NotFoundException("No clan with id " + id + "."));
+
+        List<Map<String, Object>> members = USERS.findIdsByClan(id).stream()
+                .map(userId -> USERS.findById(userId))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(u -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", u.id());
+                    m.put("fullName", u.fullName());
+                    m.put("role", u.role().name());
+                    return m;
+                })
+                .toList();
+
+        return Response.ok(members).build();
     }
 
     // --- helpers -------------------------------------------------------------
@@ -320,7 +442,8 @@ public class ClanResource {
     }
 
     private static Validated validate(ClanRequest req) {
-        if (req == null) throw new ValidationException("Request body is required.");
+        if (req == null)
+            throw new ValidationException("Request body is required.");
 
         String name = req.name == null ? null : req.name.trim();
         if (name == null || name.isEmpty()) {

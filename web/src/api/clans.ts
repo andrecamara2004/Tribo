@@ -32,6 +32,18 @@ export async function getClan(id: string): Promise<Clan> {
   return c;
 }
 
+export interface ClanMember {
+  id: string;
+  fullName: string;
+  role: string;
+}
+
+/** GET /clans/{id}/members — all users currently in the clan. */
+export async function getClanMembers(id: string): Promise<ClanMember[]> {
+  const m = await apiFetch<ClanMember[]>(`/clans/${id}/members`);
+  return m ?? [];
+}
+
 /** POST /clans — create a clan; the caller auto-joins as owner. */
 export async function createClan(input: ClanInput): Promise<Clan> {
   const c = await apiFetch<Clan>("/clans", { method: "POST", body: JSON.stringify(input) });
@@ -83,3 +95,30 @@ export async function getRanking(metric: RankMetric = "avgPace", period: RankPer
   const r = await apiFetch<ClanRanking>(`/clans/ranking?metric=${metric}&period=${period}`);
   return r ?? { metric, period, updatedAt: "", clans: [] };
 }
+
+// --- Clan Chat ---------------------------------------------------------------
+
+export interface ClanMessage {
+  id: string;
+  userId: string;
+  fullName: string;
+  text: string;
+  sentAt: string; // ISO-8601
+}
+
+/** GET /clans/{id}/messages — últimas 50 mensagens do chat do clã */
+export async function getClanMessages(clanId: string): Promise<ClanMessage[]> {
+  const r = await apiFetch<{ messages: ClanMessage[] }>(`/clans/${clanId}/messages`);
+  return r?.messages ?? [];
+}
+
+/** POST /clans/{id}/messages — envia uma mensagem ao chat */
+export async function sendClanMessage(clanId: string, text: string): Promise<ClanMessage> {
+  const m = await apiFetch<ClanMessage>(`/clans/${clanId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+  if (!m) throw new Error("Send returned no body.");
+  return m;
+}
+

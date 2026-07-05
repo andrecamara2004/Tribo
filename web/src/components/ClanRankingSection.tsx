@@ -31,7 +31,7 @@ function headline(c: ClanRankRow, metric: RankMetric, period: RankPeriod): { val
   }
 }
 
-export function ClanRankingSection({ myClanId }: { myClanId: string | null }) {
+export function ClanRankingSection({ myClanId, onClanClick }: { myClanId: string | null; onClanClick?: (id: string, name: string, tag: string, color: string) => void }) {
   const [metric, setMetric] = useState<RankMetric>("avgPace");
   const [period, setPeriod] = useState<RankPeriod>("all");
   const [clans, setClans] = useState<ClanRankRow[]>([]);
@@ -97,9 +97,9 @@ export function ClanRankingSection({ myClanId }: { myClanId: string | null }) {
       {clans.length > 0 && (
         <>
           <div className="podium">
-            <PodiumCard clan={second} place={2} metric={metric} period={period} periodLabel={periodLabel} />
-            <PodiumCard clan={first} place={1} metric={metric} period={period} periodLabel={periodLabel} crown />
-            <PodiumCard clan={third} place={3} metric={metric} period={period} periodLabel={periodLabel} />
+            <PodiumCard clan={second} place={2} metric={metric} period={period} periodLabel={periodLabel} onClick={() => second && onClanClick?.(second.id, second.name, second.tag, second.color)} />
+            <PodiumCard clan={first} place={1} metric={metric} period={period} periodLabel={periodLabel} crown onClick={() => first && onClanClick?.(first.id, first.name, first.tag, first.color)} />
+            <PodiumCard clan={third} place={3} metric={metric} period={period} periodLabel={periodLabel} onClick={() => third && onClanClick?.(third.id, third.name, third.tag, third.color)} />
           </div>
 
           <div className="clan-table">
@@ -111,7 +111,7 @@ export function ClanRankingSection({ myClanId }: { myClanId: string | null }) {
               <span>Impact</span>
             </div>
             {clans.map((c) => (
-              <div key={c.id} className={"clan-row " + (c.id === myClanId ? "mine" : "")}>
+              <div key={c.id} className={"clan-row " + (c.id === myClanId ? "mine" : "")} onClick={() => onClanClick?.(c.id, c.name, c.tag, c.color)} style={{ cursor: onClanClick ? "pointer" : "default" }}>
                 <span className="rk">{c.rank}</span>
                 <div className="clan-name">
                   <span className="clan-tag" style={{ background: c.color }}>{c.tag}</span>
@@ -144,7 +144,7 @@ export function ClanRankingSection({ myClanId }: { myClanId: string | null }) {
 }
 
 function PodiumCard({
-  clan, place, metric, period, periodLabel, crown,
+  clan, place, metric, period, periodLabel, crown, onClick,
 }: {
   clan?: ClanRankRow;
   place: number;
@@ -152,11 +152,12 @@ function PodiumCard({
   period: RankPeriod;
   periodLabel: string;
   crown?: boolean;
+  onClick?: () => void;
 }) {
   if (!clan) return <div />;
   const h = headline(clan, metric, period);
   return (
-    <div className={"podium-card " + (place === 1 ? "first" : "")}>
+    <div className={"podium-card " + (place === 1 ? "first" : "")} onClick={onClick} style={{ cursor: onClick ? "pointer" : "default" }}>
       {crown && <div className="crown">👑</div>}
       <div className={"medal " + (place === 1 ? "gold" : place === 2 ? "silver" : "bronze")}>{place}</div>
       <div className="name">
