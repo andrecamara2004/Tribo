@@ -235,11 +235,29 @@ code {
   color: #8C6D04;
 }
 
+@keyframes fadeOutError {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
 .form-error {
   color: var(--danger);
   font-size: 13px;
   font-weight: 600;
   margin: 4px 0 12px;
+  animation: fadeOutError 5s forwards;
 }
 
 .form-notice {
