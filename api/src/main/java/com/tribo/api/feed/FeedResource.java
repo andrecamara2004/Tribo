@@ -50,12 +50,13 @@ import java.util.UUID;
 /**
  * Activity feed (Sprint 3 Phase 4) + minimal kudos (D-5).
  *
- *   GET    /rest/feed                     unified run + volunteer timeline
- *   POST   /rest/feed/{itemId}/kudos      like   (idempotent)
- *   DELETE /rest/feed/{itemId}/kudos      unlike (idempotent)
+ * GET /rest/feed unified run + volunteer timeline
+ * POST /rest/feed/{itemId}/kudos like (idempotent)
+ * DELETE /rest/feed/{itemId}/kudos unlike (idempotent)
  *
  * The feed is aggregated per request (no stored timeline): recent runs + recent
- * volunteer joins, denormalised with author info, sorted newest-first in memory.
+ * volunteer joins, denormalised with author info, sorted newest-first in
+ * memory.
  * Fine at this scale; revisit with a materialised feed + cursors if it grows.
  */
 @Path("/feed")
@@ -73,18 +74,20 @@ public class FeedResource {
     private static final int MAX_LIMIT = 100;
     private static final int FETCH_BUDGET = 200; // how many recent runs to scan
 
-    private record Entry(Instant when, Map<String, Object> data) {}
+    private record Entry(Instant when, Map<String, Object> data) {
+    }
 
     // --- GET /feed -----------------------------------------------------------
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response feed(@Context ContainerRequestContext ctx,
-                         @QueryParam("scope") @DefaultValue("all") String scope,
-                         @QueryParam("limit") @DefaultValue("30") int limitParam) {
+            @QueryParam("scope") @DefaultValue("all") String scope,
+            @QueryParam("limit") @DefaultValue("30") int limitParam) {
         AuthenticatedUser caller = authUser(ctx);
         int limit = Math.max(1, Math.min(limitParam, MAX_LIMIT));
-        if (limit == 0) limit = DEFAULT_LIMIT;
+        if (limit == 0)
+            limit = DEFAULT_LIMIT;
 
         // Clan scope → restrict to the caller's clan members (incl. themselves).
         Set<String> members = null;
@@ -101,7 +104,8 @@ public class FeedResource {
 
         // Runs.
         for (Run r : RUNS.listRecent(FETCH_BUDGET)) {
-            if (members != null && !members.contains(r.userId())) continue;
+            if (members != null && !members.contains(r.userId()))
+                continue;
             Map<String, Object> m = base(r.id(), "run", r.startedAt(), r.title(), r.location(),
                     author(r.userId(), userCache, clanCache), caller.userId());
             double km = Math.round(r.distanceMeters() / 100.0) / 10.0;
@@ -115,10 +119,12 @@ public class FeedResource {
 
         // Volunteer joins (participations on VOLUNTEER activities).
         for (Participation p : PARTICIPANTS.listAll()) {
-            if (members != null && !members.contains(p.userId())) continue;
+            if (members != null && !members.contains(p.userId()))
+                continue;
             Activity a = activityCache.computeIfAbsent(p.activityId(),
                     id -> ACTIVITIES.findById(id).orElse(null));
-            if (a == null || a.eventKind() != EventKind.VOLUNTEER) continue;
+            if (a == null || a.eventKind() != EventKind.VOLUNTEER)
+                continue;
             String id = p.activityId() + ":" + p.userId();
             Map<String, Object> m = base(id, "volunteer", p.joinedAt(), a.title(), a.location(),
                     author(p.userId(), userCache, clanCache), caller.userId());
@@ -131,7 +137,8 @@ public class FeedResource {
 
         entries.sort(Comparator.comparing(Entry::when).reversed());
         List<Map<String, Object>> items = new ArrayList<>();
-        for (Entry e : entries.subList(0, Math.min(limit, entries.size()))) items.add(e.data());
+        for (Entry e : entries.subList(0, Math.min(limit, entries.size())))
+            items.add(e.data());
 
         return Response.ok(Map.of("items", items)).build();
     }
@@ -168,7 +175,8 @@ public class FeedResource {
         Map<String, User> userCache = new HashMap<>();
         Map<String, Clan> clanCache = new HashMap<>();
         List<Map<String, Object>> items = new ArrayList<>();
-        for (Comment c : COMMENTS.listByItem(itemId)) items.add(commentView(c, userCache, clanCache));
+        for (Comment c : COMMENTS.listByItem(itemId))
+            items.add(commentView(c, userCache, clanCache));
         return Response.ok(Map.of("items", items)).build();
     }
 
@@ -177,10 +185,11 @@ public class FeedResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response addComment(@Context ContainerRequestContext ctx, @PathParam("itemId") String itemId,
-                               CommentRequest req) {
+            CommentRequest req) {
         AuthenticatedUser caller = authUser(ctx);
         String text = req == null || req.text == null ? "" : req.text.trim();
-        if (text.isEmpty()) throw new ValidationException("Comment text is required.");
+        if (text.isEmpty())
+            throw new ValidationException("Comment text is required.");
         Comment c = new Comment(UUID.randomUUID().toString(), itemId, caller.userId(), text, Instant.now());
         COMMENTS.save(c);
         return Response.created(URI.create("/rest/feed/" + itemId + "/comments/" + c.id()))
@@ -191,8 +200,8 @@ public class FeedResource {
     @DELETE
     @Path("/{itemId}/comments/{commentId}")
     public Response deleteComment(@Context ContainerRequestContext ctx,
-                                  @PathParam("itemId") String itemId,
-                                  @PathParam("commentId") String commentId) {
+            @PathParam("itemId") String itemId,
+            @PathParam("commentId") String commentId) {
         AuthenticatedUser caller = authUser(ctx);
         Comment c = COMMENTS.findById(commentId)
                 .orElseThrow(() -> new NotFoundException("No comment with id " + commentId + "."));
@@ -219,7 +228,7 @@ public class FeedResource {
     // --- helpers -------------------------------------------------------------
 
     private Map<String, Object> base(String id, String type, Instant when, String title,
-                                     String location, Map<String, Object> author, String callerId) {
+            String location, Map<String, Object> author, String callerId) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", id);
         m.put("type", type);
@@ -249,6 +258,9 @@ public class FeedResource {
         }
         a.put("clanName", clanName);
         a.put("color", color);
+        if (u != null && u.pictureUrl() != null) {
+            a.put("pictureUrl", u.pictureUrl());
+        }
         return a;
     }
 

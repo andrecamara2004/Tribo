@@ -16,6 +16,11 @@ import com.tribo.api.iam.UserRepository;
 import com.tribo.api.run.Run;
 import com.tribo.api.run.RunRepository;
 import com.tribo.api.iam.User;
+import com.tribo.api.StorageService;
+
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+import java.io.InputStream;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -94,7 +99,7 @@ public class ClanResource {
         Validated v = validate(req);
 
         String id = UUID.randomUUID().toString();
-        Clan clan = new Clan(id, v.name, v.tag, v.color, caller.userId(), Instant.now());
+        Clan clan = new Clan(id, v.name, v.tag, v.color, caller.userId(), Instant.now(), null);
         CLANS.save(clan);
 
         // Creator auto-joins (switches from any current clan).
@@ -103,6 +108,45 @@ public class ClanResource {
         return Response.created(URI.create("/rest/clans/" + id))
                 .entity(view(clan))
                 .build();
+    }
+
+    // --- picture upload ------------------------------------------------------
+
+    @POST
+    @Path("/{id}/picture")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response uploadPicture(
+            @Context ContainerRequestContext ctx,
+            @PathParam("id") String id,
+            @FormDataParam("file") InputStream fileInputStream,
+            @FormDataParam("file") FormDataContentDisposition fileDetail) {
+
+        AuthenticatedUser caller = authUser(ctx);
+        Clan clan = CLANS.findById(id).orElseThrow(() -> new NotFoundException("Clan not found."));
+
+        if (!clan.ownerId().equals(caller.userId())) {
+            throw new ForbiddenException("Only the clan owner can change the clan picture.");
+        }
+
+        if (fileInputStream == null || fileDetail == null) {
+            throw new ValidationException("No file uploaded");
+        }
+
+        // Upload to GCS
+        String contentType = "image/jpeg";
+        if (fileDetail.getFileName() != null && fileDetail.getFileName().toLowerCase().endsWith(".png")) {
+            contentType = "image/png";
+        }
+
+        String pictureUrl = StorageService.uploadImage(fileInputStream, contentType);
+
+        // Update Clan
+        Clan updated = new Clan(clan.id(), clan.name(), clan.tag(), clan.color(), clan.ownerId(), clan.createdAt(),
+                pictureUrl);
+        CLANS.save(updated);
+
+        return Response.ok(view(updated)).build();
     }
 
     // --- list ----------------------------------------------------------------
@@ -261,6 +305,7 @@ public class ClanResource {
             m.put("name", clan.name());
             m.put("tag", clan.tag());
             m.put("color", clan.color());
+            m.put("pictureUrl", clan.pictureUrl());
             m.put("members", members);
             m.put("totalKm", totalKm);
             m.put("monthlyKm", monthlyKm);
@@ -297,6 +342,11 @@ public class ClanResource {
                     map.put("fullName", m.fullName());
                     map.put("text", m.text());
                     map.put("sentAt", m.sentAt().toString());
+                    USERS.findById(m.userId()).ifPresent(u -> {
+                        if (u.pictureUrl() != null) {
+                            map.put("pictureUrl", u.pictureUrl());
+                        }
+                    });
                     return map;
                 })
                 .toList();
@@ -344,6 +394,9 @@ public class ClanResource {
         out.put("fullName", message.fullName());
         out.put("text", message.text());
         out.put("sentAt", message.sentAt().toString());
+        if (me.pictureUrl() != null) {
+            out.put("pictureUrl", me.pictureUrl());
+        }
 
         return Response.status(Response.Status.CREATED).entity(out).build();
     }
@@ -407,6 +460,7 @@ public class ClanResource {
                     m.put("id", u.id());
                     m.put("fullName", u.fullName());
                     m.put("role", u.role().name());
+                    m.put("pictureUrl", u.pictureUrl());
                     return m;
                 })
                 .toList();
@@ -432,6 +486,7 @@ public class ClanResource {
         m.put("name", c.name());
         m.put("tag", c.tag());
         m.put("color", c.color());
+        m.put("pictureUrl", c.pictureUrl());
         m.put("ownerId", c.ownerId());
         m.put("createdAt", c.createdAt().toString());
         m.put("memberCount", USERS.countByClan(c.id()));

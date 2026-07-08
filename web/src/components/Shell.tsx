@@ -105,7 +105,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
 
         <div className="sidebar-bottom">
-          <Avatar name={displayName} color={profile?.avatarColor} size="sm" />
+          <Avatar name={displayName} color={profile?.avatarColor} size="sm" pictureUrl={profile?.pictureUrl} />
           <div className="who">
             <strong>{displayName}</strong>
             <small>{subtitle}</small>

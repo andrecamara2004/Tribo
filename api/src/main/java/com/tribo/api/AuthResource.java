@@ -66,7 +66,6 @@ public class AuthResource {
     private static final int MIN_AGE = 13;
     private static final int MAX_AGE = 120;
 
-
     @POST
     @Path("/register")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -109,7 +108,7 @@ public class AuthResource {
 
         Role role = resolveRequestedRole(req.role);
         boolean verified;
-        //bootstrap sysadmin
+        // bootstrap sysadmin
         String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
         if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
             // One-time seed: the configured email is created as a verified
@@ -135,8 +134,9 @@ public class AuthResource {
                 Instant.now(),
                 false,
                 verified,
-                null, // new users start without a clan 
-                0.0 // no weekly goal yet
+                null, // new users start without a clan
+                0.0, // no weekly goal yet
+                null // no profile picture yet
         );
         USERS.save(user);
 
@@ -149,10 +149,12 @@ public class AuthResource {
                 .build();
     }
 
-    /** Roles a user may pick at registration. Privileged roles are excluded (BACKOFFICE and SYSADMIN). */
+    /**
+     * Roles a user may pick at registration. Privileged roles are excluded
+     * (BACKOFFICE and SYSADMIN).
+     */
     private static final java.util.Set<Role> SELF_REGISTERABLE = java.util.EnumSet.of(Role.END_USER,
             Role.ACTIVITY_MANAGER, Role.PARTNER);
-
 
     private static Role resolveRequestedRole(String requested) {
         if (requested == null || requested.isBlank()) {
@@ -233,7 +235,7 @@ public class AuthResource {
             throw new UnauthorizedException("Not a refresh token.");
         }
 
-        //reject a refresh token that has been logged out.
+        // reject a refresh token that has been logged out.
         if (REVOKED.isRevoked(decoded.getId())) {
             throw new UnauthorizedException("Refresh token has been revoked.");
         }

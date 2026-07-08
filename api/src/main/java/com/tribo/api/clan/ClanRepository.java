@@ -15,7 +15,8 @@ import java.util.Optional;
 
 /**
  * Datastore access for the Clan kind. Follows the Activity/User repository
- * pattern: UUID-string key, static Datastore client, hand-rolled entity mapping.
+ * pattern: UUID-string key, static Datastore client, hand-rolled entity
+ * mapping.
  *
  * The clan set is small (one per team), so list() returns everything with no
  * cursor paging — add it later if the count grows. Member counts are not stored
@@ -25,23 +26,25 @@ public class ClanRepository {
 
     static final String KIND = "Clan";
 
-    private static final Datastore DATASTORE =
-            DatastoreOptions.getDefaultInstance().getService();
+    private static final Datastore DATASTORE = DatastoreOptions.getDefaultInstance().getService();
 
-    private static final KeyFactory KEY_FACTORY =
-            DATASTORE.newKeyFactory().setKind(KIND);
+    private static final KeyFactory KEY_FACTORY = DATASTORE.newKeyFactory().setKind(KIND);
 
     /** Persist a clan. Overwrites any existing entity with the same id. */
     public void save(Clan c) {
         Key key = KEY_FACTORY.newKey(c.id());
-        Entity entity = Entity.newBuilder(key)
+        Entity.Builder entityBuilder = Entity.newBuilder(key)
                 .set("name", c.name())
                 .set("tag", c.tag())
                 .set("color", c.color())
                 .set("ownerId", c.ownerId())
-                .set("createdAt", c.createdAt().toString())
-                .build();
-        DATASTORE.put(entity);
+                .set("createdAt", c.createdAt().toString());
+
+        if (c.pictureUrl() != null) {
+            entityBuilder.set("pictureUrl", c.pictureUrl());
+        }
+
+        DATASTORE.put(entityBuilder.build());
     }
 
     public Optional<Clan> findById(String id) {
@@ -73,7 +76,7 @@ public class ClanRepository {
                 e.getString("tag"),
                 e.getString("color"),
                 e.getString("ownerId"),
-                Instant.parse(e.getString("createdAt"))
-        );
+                Instant.parse(e.getString("createdAt")),
+                e.contains("pictureUrl") ? e.getString("pictureUrl") : null);
     }
 }

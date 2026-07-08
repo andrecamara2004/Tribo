@@ -9,20 +9,20 @@ import java.time.Instant;
  * Jackson-serializable, with the Datastore kind + property mapping living in
  * ClanRepository.
  *
- *   ownerId  — the user id of the creator (set server-side from the JWT).
- *   tag      — short uppercase label, 2–5 chars (e.g. "FOR").
- *   color    — hex string "#RRGGBB", used cosmetically by the clients.
+ * ownerId — the user id of the creator (set server-side from the JWT).
+ * tag — short uppercase label, 2–5 chars (e.g. "FOR").
+ * color — hex string "#RRGGBB", used cosmetically by the clients.
  *
  * A clan has no secret fields, so it's returned to clients as-is. The
  * derived member count is NOT stored on the entity — resources compute it via
  * UserRepository.countByClan and surface it separately (see ClanResource).
  */
 public record Clan(
-        String id,                  // UUID string, also the entity key
-        String name,
-        String tag,
-        String color,
-        String ownerId,
-        Instant createdAt
-) {
+                String id, // UUID string, also the entity key
+                String name,
+                String tag,
+                String color,
+                String ownerId,
+                Instant createdAt,
+                String pictureUrl) {
 }

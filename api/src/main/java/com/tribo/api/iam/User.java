@@ -19,19 +19,20 @@ import java.time.Instant;
  * pure Java.
  */
 public record User(
-        String id,                  // UUID string, also used as the entity key
-        String email,               // always stored lowercased
-        String passwordHash,        // bcrypt hash (B-2)
+        String id, // UUID string, also used as the entity key
+        String email, // always stored lowercased
+        String passwordHash, // bcrypt hash (B-2)
         String fullName,
-        String phoneNumber,         // E.164 format e.g. "+351912345678"
+        String phoneNumber, // E.164 format e.g. "+351912345678"
         int age,
         Role role,
         ProfileVisibility profileVisibility,
         Instant createdAt,
-        boolean suspended,          // backoffice can flip this; login should reject if true
-        boolean verified,           // privileged self-registered roles start false; backoffice verifies (D-1)
-        String clanId,              // the clan the user belongs to, or null if none (D-3)
-        double weeklyGoalKm         // per-user weekly distance goal; 0 = none (Phase 6)
+        boolean suspended, // backoffice can flip this; login should reject if true
+        boolean verified, // privileged self-registered roles start false; backoffice verifies (D-1)
+        String clanId, // the clan the user belongs to, or null if none (D-3)
+        double weeklyGoalKm, // per-user weekly distance goal; 0 = none (Phase 6)
+        String pictureUrl // public URL of the user's profile picture, or null
 ) {
     public enum ProfileVisibility {
         PUBLIC,

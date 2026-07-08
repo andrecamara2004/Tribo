@@ -1,7 +1,8 @@
 // src/api/clans.ts
 // Clan API (Sprint 3 Phase 1). One clan per user (D-3); membership lives on the
 // user, so join/leave change the caller's clan and are reflected by getMe().
-import { apiFetch } from "./http";
+import { apiFetch, API_BASE } from "./http";
+import { getAccessToken } from "../auth/tokenStore";
 
 export interface Clan {
   id: string;
@@ -11,6 +12,7 @@ export interface Clan {
   ownerId: string;
   createdAt: string; // ISO-8601
   memberCount: number;
+  pictureUrl?: string;
 }
 
 export interface ClanInput {
@@ -32,10 +34,33 @@ export async function getClan(id: string): Promise<Clan> {
   return c;
 }
 
+/** POST /clans/{id}/picture — upload clan picture. */
+export async function uploadClanPicture(id: string, file: Blob): Promise<Clan> {
+  const formData = new FormData();
+  formData.append("file", file, "clan.jpg");
+
+  const token = getAccessToken();
+  const headers: HeadersInit = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/clans/${id}/picture`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to upload clan picture.");
+  }
+
+  return res.json();
+}
+
 export interface ClanMember {
   id: string;
   fullName: string;
   role: string;
+  pictureUrl?: string;
 }
 
 /** GET /clans/{id}/members — all users currently in the clan. */
@@ -72,6 +97,7 @@ export interface ClanRankRow {
   name: string;
   tag: string;
   color: string;
+  pictureUrl?: string;
   members: number;
   totalKm: number;
   monthlyKm: number;
@@ -104,6 +130,7 @@ export interface ClanMessage {
   fullName: string;
   text: string;
   sentAt: string; // ISO-8601
+  pictureUrl?: string;
 }
 
 /** GET /clans/{id}/messages — últimas 50 mensagens do chat do clã */

@@ -16,10 +16,12 @@ export function Avatar({
   name = "??",
   color,
   size = "",
+  pictureUrl,
 }: {
   name?: string;
   color?: string;
   size?: "" | "sm" | "lg" | "xl";
+  pictureUrl?: string;
 }) {
   const initials = name
     .split(/\s+/)
@@ -27,6 +29,21 @@ export function Avatar({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  if (pictureUrl) {
+    return (
+      <div className={"avatar " + size} style={{
+        backgroundImage: `url(${pictureUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        color: 'transparent' // hide initials
+      }}>
+        {initials}
+      </div>
+    );
+  }
+
   return (
     <div className={"avatar " + size} style={{ background: color ?? colorFromString(name) }}>
       {initials}

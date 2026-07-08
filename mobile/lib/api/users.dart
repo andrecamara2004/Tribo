@@ -13,12 +13,14 @@ class ClanRef {
   final String name;
   final String tag;
   final String color;
+  final String? pictureUrl;
 
   const ClanRef({
     required this.id,
     required this.name,
     required this.tag,
     required this.color,
+    this.pictureUrl,
   });
 
   factory ClanRef.fromJson(Map<String, dynamic> j) => ClanRef(
@@ -26,6 +28,7 @@ class ClanRef {
         name: j['name'] as String,
         tag: j['tag'] as String,
         color: (j['color'] ?? '#888888') as String,
+        pictureUrl: j['pictureUrl'] as String?,
       );
 }
 
@@ -54,6 +57,7 @@ class Me {
   final bool verified;
   final String handle; // derived, e.g. "@ana"
   final String avatarColor; // derived hex
+  final String? pictureUrl;
   final ClanRef? clan;
   final int volunteerEvents; // VOLUNTEER activities joined
   final bool staffEligible; // true once volunteerEvents >= 3
@@ -70,6 +74,7 @@ class Me {
     required this.verified,
     required this.handle,
     required this.avatarColor,
+    this.pictureUrl,
     required this.clan,
     required this.volunteerEvents,
     required this.staffEligible,
@@ -87,6 +92,7 @@ class Me {
         verified: (j['verified'] ?? false) as bool,
         handle: (j['handle'] ?? '') as String,
         avatarColor: (j['avatarColor'] ?? '#1B8A5A') as String,
+        pictureUrl: j['pictureUrl'] as String?,
         clan: j['clan'] == null
             ? null
             : ClanRef.fromJson(j['clan'] as Map<String, dynamic>),
@@ -109,5 +115,16 @@ class UsersApi {
     final data = await _client.get('/users/me') as Map<String, dynamic>?;
     if (data == null) throw Exception('Profile read returned no body.');
     return Me.fromJson(data);
+  }
+
+  /// POST /users/me/picture
+  Future<void> uploadProfilePicture(List<int> fileBytes, String filename, String mimeType) async {
+    await _client.postMultipart(
+      '/users/me/picture',
+      fileField: 'file',
+      fileBytes: fileBytes,
+      filename: filename,
+      mimeType: mimeType,
+    );
   }
 }

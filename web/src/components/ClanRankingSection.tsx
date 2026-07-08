@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { getRanking, type ClanRankRow, type RankMetric, type RankPeriod } from "../api/clans";
 import { formatPace } from "../lib/run";
+import { Avatar } from "./Avatar";
 
 const METRICS: { id: RankMetric; label: string }[] = [
   { id: "avgPace", label: "Avg pace" },
@@ -113,8 +114,8 @@ export function ClanRankingSection({ myClanId, onClanClick }: { myClanId: string
             {clans.map((c) => (
               <div key={c.id} className={"clan-row " + (c.id === myClanId ? "mine" : "")} onClick={() => onClanClick?.(c.id, c.name, c.tag, c.color)} style={{ cursor: onClanClick ? "pointer" : "default" }}>
                 <span className="rk">{c.rank}</span>
-                <div className="clan-name">
-                  <span className="clan-tag" style={{ background: c.color }}>{c.tag}</span>
+                <div className="clan-name" style={{ gap: 12 }}>
+                  <Avatar name={c.name} color={c.color} pictureUrl={c.pictureUrl} />
                   <div>
                     <strong>
                       {c.name}
@@ -160,8 +161,8 @@ function PodiumCard({
     <div className={"podium-card " + (place === 1 ? "first" : "")} onClick={onClick} style={{ cursor: onClick ? "pointer" : "default" }}>
       {crown && <div className="crown">👑</div>}
       <div className={"medal " + (place === 1 ? "gold" : place === 2 ? "silver" : "bronze")}>{place}</div>
-      <div className="name">
-        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: clan.color, marginRight: 6 }} />
+      <div className="name" style={{ gap: 8 }}>
+        <Avatar name={clan.name} color={clan.color} pictureUrl={clan.pictureUrl} size="sm" />
         {clan.name}
       </div>
       <div className="headline">
