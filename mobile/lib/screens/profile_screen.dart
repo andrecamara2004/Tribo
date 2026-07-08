@@ -255,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({super.key, required this.name, required this.colorHex, this.pictureUrl});
+  const _Avatar({required this.name, required this.colorHex, this.pictureUrl});
 
   final String name;
   final String colorHex;
