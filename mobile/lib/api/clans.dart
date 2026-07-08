@@ -138,4 +138,68 @@ class ClansApi {
         .toList();
     return ClanRanking(metric, period, clans);
   }
+
+  /// GET /clans/{id}/members — all users in the clan with their roles.
+  Future<List<ClanMember>> members(String id) async {
+    final data = await _client.get('/clans/$id/members');
+    final items = (data as List<dynamic>?) ?? const [];
+    return items.map((e) => ClanMember.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// GET /clans/{id}/messages — last 50 chat messages.
+  Future<List<ClanMessage>> getMessages(String id) async {
+    final data = await _client.get('/clans/$id/messages') as Map<String, dynamic>?;
+    final msgs = (data?['messages'] as List<dynamic>?) ?? const [];
+    return msgs.map((e) => ClanMessage.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// POST /clans/{id}/messages — send a chat message.
+  Future<ClanMessage> sendMessage(String id, String text) async {
+    final data = await _client.post('/clans/$id/messages', body: {'text': text})
+        as Map<String, dynamic>?;
+    if (data == null) throw Exception('Send returned no body.');
+    return ClanMessage.fromJson(data);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Models for members and chat
+// ---------------------------------------------------------------------------
+
+class ClanMember {
+  final String id;
+  final String fullName;
+  final String role;
+
+  const ClanMember({required this.id, required this.fullName, required this.role});
+
+  factory ClanMember.fromJson(Map<String, dynamic> j) => ClanMember(
+        id: j['id'] as String,
+        fullName: (j['fullName'] ?? '') as String,
+        role: (j['role'] ?? 'member') as String,
+      );
+}
+
+class ClanMessage {
+  final String id;
+  final String userId;
+  final String fullName;
+  final String text;
+  final String sentAt;
+
+  const ClanMessage({
+    required this.id,
+    required this.userId,
+    required this.fullName,
+    required this.text,
+    required this.sentAt,
+  });
+
+  factory ClanMessage.fromJson(Map<String, dynamic> j) => ClanMessage(
+        id: j['id'] as String,
+        userId: (j['userId'] ?? '') as String,
+        fullName: (j['fullName'] ?? '') as String,
+        text: (j['text'] ?? '') as String,
+        sentAt: (j['sentAt'] ?? '') as String,
+      );
 }

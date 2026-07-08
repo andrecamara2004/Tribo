@@ -15,7 +15,7 @@ import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
 import { ClanRankingSection } from "../components/ClanRankingSection";
 
-type Tab = "chat" | "top";
+type Tab = "chat" | "clans" | "ranking";
 
 // --- helpers -----------------------------------------------------------------
 
@@ -319,8 +319,7 @@ export function ClanPage() {
   const [selectedClanInfo, setSelectedClanInfo] = useState<{ id: string; name: string; tag: string; color: string; } | null>(null);
 
   const myClanId = profile?.clan?.id ?? null;
-  // Open on Chat if the user is in a clan, otherwise Top Clans.
-  const [tab, setTab] = useState<Tab>(myClanId ? "chat" : "top");
+  const [tab, setTab] = useState<Tab>(myClanId ? "chat" : "clans");
 
   const filteredClans = clans.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -330,7 +329,7 @@ export function ClanPage() {
   // Keep tab in sync if the user joins/leaves a clan.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTab(myClanId ? "chat" : "top");
+    setTab(myClanId ? "chat" : "clans");
   }, [myClanId]);
 
   async function reloadClans() {
@@ -372,31 +371,32 @@ export function ClanPage() {
     });
   }
 
+  const tabs: { key: Tab; label: string; icon: string; disabled?: boolean }[] = [
+    { key: "chat", label: "Chat", icon: "🗪", disabled: !myClanId },
+    { key: "clans", label: "Clans", icon: "🛡️" },
+    { key: "ranking", label: "Ranking", icon: "🏆" },
+  ];
+
   return (
     <Shell>
-      {/* Page header + tab toggle */}
+      {/* Page header + tab bar */}
       <div className="topbar">
         <div>
           <h1>Clan</h1>
           <div className="sub">Your team chat and the live ranking</div>
         </div>
         <div style={{ display: "flex", gap: 4, background: "var(--line)", borderRadius: 10, padding: 4 }}>
-          {myClanId && (
+          {tabs.map(t => (
             <button
-              className={tab === "chat" ? "btn btn-primary" : "btn btn-ghost"}
-              style={{ fontSize: 13, padding: "6px 14px", borderRadius: 8 }}
-              onClick={() => setTab("chat")}
+              key={t.key}
+              className={tab === t.key ? "btn btn-primary" : "btn btn-ghost"}
+              style={{ fontSize: 13, padding: "6px 14px", borderRadius: 8, opacity: t.disabled ? 0.4 : 1 }}
+              onClick={() => !t.disabled && setTab(t.key)}
+              disabled={t.disabled}
             >
-              💬 Chat
+              {t.icon} {t.label}
             </button>
-          )}
-          <button
-            className={tab === "top" ? "btn btn-primary" : "btn btn-ghost"}
-            style={{ fontSize: 13, padding: "6px 14px", borderRadius: 8 }}
-            onClick={() => setTab("top")}
-          >
-            🏆 Top Clans
-          </button>
+          ))}
         </div>
       </div>
 
@@ -413,8 +413,8 @@ export function ClanPage() {
         </div>
       )}
 
-      {/* ── Top Clans tab ── */}
-      {tab === "top" && (
+      {/* ── Clans tab ── */}
+      {tab === "clans" && (
         <>
           {/* Your clan */}
           <div className="card">
@@ -520,7 +520,7 @@ export function ClanPage() {
             )}
           </div>
 
-          {/* Discover all clans */}
+          {/* All clans */}
           <div className="card" style={{ marginTop: 16 }}>
             <div className="card-title">
               <h3 style={{ margin: 0 }}>All clans</h3>
@@ -559,12 +559,14 @@ export function ClanPage() {
               </ul>
             )}
           </div>
-
-          {/* Live leaderboard */}
-          <div style={{ marginTop: 24 }}>
-            <ClanRankingSection myClanId={myClanId} onClanClick={(id, name, tag, color) => setSelectedClanInfo({ id, name, tag, color })} />
-          </div>
         </>
+      )}
+
+      {/* ── Ranking tab ── */}
+      {tab === "ranking" && (
+        <div style={{ marginTop: 8 }}>
+          <ClanRankingSection myClanId={myClanId} onClanClick={(id, name, tag, color) => setSelectedClanInfo({ id, name, tag, color })} />
+        </div>
       )}
 
       {selectedClanInfo && (
@@ -609,3 +611,4 @@ export function ClanPage() {
     </Shell>
   );
 }
+
