@@ -170,9 +170,10 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
 
       if (cropped == null || !mounted) return;
 
+      final clansApi = ServicesScope.of(context).clans;
       setState(() => _busy = true);
       final bytes = await File(cropped.path).readAsBytes();
-      await ServicesScope.of(context).clans.uploadClanPicture(myClanId, bytes, 'clan.jpg', 'image/jpeg');
+      await clansApi.uploadClanPicture(myClanId, bytes, 'clan.jpg', 'image/jpeg');
       await _loadAll();
     } catch (e) {
       if (mounted) {
@@ -1053,7 +1054,7 @@ Color _hexColor(String hex) {
 }
 
 class ClanAvatar extends StatelessWidget {
-  const ClanAvatar({required this.tag, required this.colorHex, this.pictureUrl, this.small = false});
+  const ClanAvatar({super.key, required this.tag, required this.colorHex, this.pictureUrl, this.small = false});
 
   final String tag;
   final String colorHex;

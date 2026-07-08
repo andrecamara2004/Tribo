@@ -77,9 +77,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (cropped == null || !mounted) return;
 
+      final usersApi = ServicesScope.of(context).users;
       setState(() => _loading = true);
       final bytes = await File(cropped.path).readAsBytes();
-      await ServicesScope.of(context).users.uploadProfilePicture(bytes, 'profile.jpg', 'image/jpeg');
+      await usersApi.uploadProfilePicture(bytes, 'profile.jpg', 'image/jpeg');
       await _load();
     } catch (e) {
       if (mounted) {
@@ -254,12 +255,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.colorHex, this.pictureUrl, this.radius = 32});
+  const _Avatar({super.key, required this.name, required this.colorHex, this.pictureUrl});
 
   final String name;
   final String colorHex;
   final String? pictureUrl;
-  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -271,6 +271,7 @@ class _Avatar extends StatelessWidget {
             .take(2)
             .map((w) => w[0].toUpperCase())
             .join();
+    final double radius = 32.0;
     if (pictureUrl != null && pictureUrl!.isNotEmpty) {
       return CircleAvatar(
         radius: radius,
