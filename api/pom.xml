@@ -82,6 +82,12 @@
       <version>3.1.10</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.glassfish.jersey.media</groupId>
+      <artifactId>jersey-media-multipart</artifactId>
+      <version>3.1.10</version>
+    </dependency>
+
     <!-- java.time (Instant) JSON support. Without this, serializing an Activity's
          Instant fields throws "Java 8 date/time type not supported by default".
          Version comes from jackson-bom (2.18.1) above. Registered + configured to

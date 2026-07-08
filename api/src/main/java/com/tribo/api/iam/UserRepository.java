@@ -61,6 +61,10 @@ public class UserRepository {
                 .set("verified", user.verified())
                 .set("weeklyGoalKm", user.weeklyGoalKm());
 
+        if (user.pictureUrl() != null) {
+            entity.set("pictureUrl", user.pictureUrl());
+        }
+
         // clanId is optional (D-3): only write the property when the user is in
         // a clan, so "no clan" is simply the absence of the property.
         if (user.clanId() != null) {
@@ -127,7 +131,8 @@ public class UserRepository {
                 // clanId is optional and absent for users not in a clan (and for
                 // legacy entities created before D-3).
                 e.contains("clanId") ? e.getString("clanId") : null,
-                e.contains("weeklyGoalKm") ? e.getDouble("weeklyGoalKm") : 0.0);
+                e.contains("weeklyGoalKm") ? e.getDouble("weeklyGoalKm") : 0.0,
+                e.contains("pictureUrl") ? e.getString("pictureUrl") : null);
     }
 
     /**
@@ -144,7 +149,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), true, u.clanId(), u.weeklyGoalKm());
+                u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl());
         save(updated);
         return Optional.of(updated);
     }
@@ -164,7 +169,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), clanId, u.weeklyGoalKm());
+                u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl());
         save(updated);
         return Optional.of(updated);
     }
@@ -178,7 +183,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), u.clanId(), Math.max(0, km));
+                u.suspended(), u.verified(), u.clanId(), Math.max(0, km), u.pictureUrl());
         save(updated);
         return Optional.of(updated);
     }
@@ -227,7 +232,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                suspended, u.verified(), u.clanId(), u.weeklyGoalKm());
+                suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl());
         save(updated);
         return Optional.of(updated);
     }

@@ -1,7 +1,10 @@
 // lib/screens/clan_screen.dart
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import '../api/clans.dart';
 import '../api/http.dart';
@@ -133,14 +136,57 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _createClan() async {
-    final svc = ServicesScope.of(context);
     final input = await showDialog<ClanInput>(
       context: context,
-      builder: (_) => const _CreateClanDialog(),
+      builder: (ctx) => const _CreateClanDialog(),
     );
     if (input == null) return;
-    await _act(() => svc.clans.create(input).then((_) {}));
+    _act(() => ServicesScope.of(context).clans.create(input));
   }
+
+  Future<void> _pickAndUploadClanImage() async {
+    final myClanId = _me?.clan?.id;
+    if (myClanId == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null || !mounted) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Clan Image',
+            toolbarColor: Theme.of(context).primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(title: 'Crop Clan Image', aspectRatioLockEnabled: true),
+        ],
+      );
+
+      if (cropped == null || !mounted) return;
+
+      final clansApi = ServicesScope.of(context).clans;
+      setState(() => _busy = true);
+      final bytes = await File(cropped.path).readAsBytes();
+      await clansApi.uploadClanPicture(myClanId, bytes, 'clan.jpg', 'image/jpeg');
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick or upload picture: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // --- UI building -----------------------------------------------------------
 
   /// Shows a confirmation dialog, then calls leave.
   Future<void> _confirmLeave() async {
@@ -304,7 +350,23 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
             if (clan != null)
               Row(
                 children: [
-                  _ClanTag(tag: clan.tag, colorHex: clan.color),
+                  GestureDetector(
+                    onTap: _busy ? null : _pickAndUploadClanImage,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        ClanAvatar(tag: clan.tag, colorHex: clan.color, pictureUrl: clan.pictureUrl),
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(child: Text(clan.name, style: theme.textTheme.titleSmall)),
                   TextButton(
@@ -398,7 +460,7 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   onTap: () => _openClanDetail(c),
-                  leading: _ClanTag(tag: c.tag, colorHex: c.color),
+                  leading: ClanAvatar(tag: c.tag, colorHex: c.color),
                   title: Text(c.name),
                   subtitle: Text('${c.memberCount} member${c.memberCount == 1 ? '' : 's'}'),
                   trailing: c.id == myId
@@ -489,7 +551,7 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
         ),
         title: Row(
           children: [
-            _ClanTag(tag: r.tag, colorHex: r.color, small: true),
+            ClanAvatar(tag: r.tag, colorHex: r.color, small: true),
             const SizedBox(width: 8),
             Flexible(child: Text(r.name, overflow: TextOverflow.ellipsis)),
             if (mine)
@@ -596,7 +658,7 @@ class _ClanDetailSheetState extends State<_ClanDetailSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                _ClanTag(tag: clan.tag, colorHex: clan.color),
+                ClanAvatar(tag: clan.tag, colorHex: clan.color),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -991,16 +1053,33 @@ Color _hexColor(String hex) {
   return v == null ? const Color(0xFF888888) : Color(v);
 }
 
-class _ClanTag extends StatelessWidget {
-  const _ClanTag({required this.tag, required this.colorHex, this.small = false});
+class ClanAvatar extends StatelessWidget {
+  const ClanAvatar({super.key, required this.tag, required this.colorHex, this.pictureUrl, this.small = false});
 
   final String tag;
   final String colorHex;
+  final String? pictureUrl;
   final bool small;
 
   @override
   Widget build(BuildContext context) {
     final size = small ? 26.0 : 36.0;
+    
+    if (pictureUrl != null && pictureUrl!.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: _hexColor(colorHex),
+          borderRadius: BorderRadius.circular(8),
+          image: DecorationImage(
+            image: NetworkImage(pictureUrl!),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: size,
       height: size,

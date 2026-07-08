@@ -18,6 +18,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'token_store.dart';
 
@@ -169,4 +170,65 @@ class ApiClient {
 
   Future<dynamic> post(String path, {Object? body, bool skipAuth = false}) =>
       request('POST', path, body: body, skipAuth: skipAuth);
+
+  Future<dynamic> postMultipart(
+    String path, {
+    required String fileField,
+    required List<int> fileBytes,
+    required String filename,
+    String? mimeType,
+  }) async {
+    Future<http.Response> doRequest() async {
+      final uri = Uri.parse('$apiBase$path');
+      final req = http.MultipartRequest('POST', uri);
+      
+      final token = await _tokens.getAccessToken();
+      if (token != null) req.headers['Authorization'] = 'Bearer $token';
+
+      final file = http.MultipartFile.fromBytes(
+        fileField,
+        fileBytes,
+        filename: filename,
+        contentType: mimeType != null ? MediaType.parse(mimeType) : null,
+      );
+      req.files.add(file);
+
+      final streamedRes = await _http.send(req);
+      return http.Response.fromStream(streamedRes);
+    }
+
+    var res = await doRequest();
+
+    if (res.statusCode == 401) {
+      final newToken = await _refreshAccessToken();
+      if (newToken != null) {
+        res = await doRequest();
+      }
+    }
+
+    if (res.statusCode == 204 || res.body.isEmpty) {
+      if (res.statusCode >= 200 && res.statusCode < 300) return null;
+    }
+
+    dynamic parsed;
+    try {
+      parsed = res.body.isEmpty ? null : jsonDecode(res.body);
+    } catch (_) {
+      parsed = null;
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      final error = parsed is Map<String, dynamic>
+          ? parsed['error'] as Map<String, dynamic>?
+          : null;
+      throw ApiError(
+        res.statusCode,
+        error?['code'] as String?,
+        (error?['message'] as String?) ??
+            'Request failed with status ${res.statusCode}',
+      );
+    }
+
+    return parsed;
+  }
 }

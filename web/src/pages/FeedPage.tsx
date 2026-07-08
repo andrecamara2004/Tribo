@@ -142,7 +142,7 @@ function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
   return (
     <article className="feed-card">
       <div className="feed-head">
-        <Avatar name={item.author.name} color={item.author.color} />
+        <Avatar name={item.author.name} color={item.author.color} pictureUrl={item.author.pictureUrl} />
         <div className="who">
           <strong>{item.author.name}</strong>
           <small>
@@ -199,7 +199,7 @@ function FeedCard({ item, onKudos }: { item: FeedItem; onKudos: () => void }) {
           {comments.length === 0 && <p className="state-msg" style={{ margin: 0, fontSize: 13 }}>No comments yet — be the first.</p>}
           {comments.map((c) => (
             <div key={c.id} className="feed-comment">
-              <Avatar name={c.author.name} color={c.author.color} size="sm" />
+              <Avatar name={c.author.name} color={c.author.color} size="sm" pictureUrl={c.author.pictureUrl} />
               <div className="body">
                 <strong>{c.author.name}</strong>
                 <p>{c.text}</p>

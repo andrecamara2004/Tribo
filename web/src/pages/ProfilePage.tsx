@@ -2,19 +2,25 @@
 // Sprint 3 Phase 1: real profile header from GET /users/me + running/volunteer
 // stats. Clan management (join / leave / create) now lives on the dedicated
 // Clan tab — the header still shows which clan you're in.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { getMyStats, type RunStats } from "../api/runs";
+import { uploadProfilePicture } from "../api/users";
 import { Shell } from "../components/Shell";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { formatPace } from "../lib/run";
+import { ImageCropperModal } from "../components/ImageCropperModal";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function ProfilePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [stats, setStats] = useState<RunStats | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Initial load — await before setState (avoids the set-state-in-effect rule),
   // with a cancel guard, mirroring ActivitiesPage.
@@ -32,6 +38,28 @@ export function ProfilePage() {
       cancelled = true;
     };
   }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setImageToCrop(URL.createObjectURL(file));
+      e.target.value = ""; // Reset input
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setImageToCrop(null);
+    setIsUploading(true);
+    try {
+      await uploadProfilePicture(croppedBlob);
+      await refreshProfile(); // Refresh profile to get the new pictureUrl
+    } catch (e) {
+      console.error("Failed to upload profile picture", e);
+      alert("Failed to upload picture.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   if (!profile) {
     return (
@@ -51,7 +79,20 @@ export function ProfilePage() {
       </div>
 
       <section className="profile-head">
-        <Avatar name={profile.fullName} color={profile.avatarColor} size="xl" />
+        <div style={{ position: "relative", cursor: "pointer", opacity: isUploading ? 0.5 : 1 }} onClick={() => fileInputRef.current?.click()}>
+          <Avatar name={profile.fullName} color={profile.avatarColor} size="xl" pictureUrl={profile.pictureUrl} />
+          <div style={{ position: "absolute", bottom: 0, right: 0, background: "var(--primary)", color: "#fff", borderRadius: "50%", padding: 6, display: "flex" }}>
+            <Icon name="camera" />
+          </div>
+        </div>
+        <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+        {imageToCrop && (
+          <ImageCropperModal
+            imageSrc={imageToCrop}
+            onClose={() => setImageToCrop(null)}
+            onCropComplete={handleCropComplete}
+          />
+        )}
         <div className="who">
           <h2>{profile.fullName}</h2>
           <div className="handle">{profile.handle}</div>

@@ -1,6 +1,10 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+
 import '../api/http.dart';
 import '../api/services_scope.dart';
 import '../api/users.dart';
@@ -50,6 +54,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null || !mounted) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Theme.of(context).primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(title: 'Crop Image', aspectRatioLockEnabled: true),
+        ],
+      );
+
+      if (cropped == null || !mounted) return;
+
+      final usersApi = ServicesScope.of(context).users;
+      setState(() => _loading = true);
+      final bytes = await File(cropped.path).readAsBytes();
+      await usersApi.uploadProfilePicture(bytes, 'profile.jpg', 'image/jpeg');
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick or upload picture: $e')),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = AuthScope.of(context);
@@ -92,7 +134,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // --- Identity header -------------------------------------------
           Row(
             children: [
-              _Avatar(name: me.fullName, colorHex: me.avatarColor),
+              GestureDetector(
+                onTap: _loading ? null : _pickAndUploadImage,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    _Avatar(name: me.fullName, colorHex: me.avatarColor, pictureUrl: me.pictureUrl),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -197,10 +255,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.colorHex});
+  const _Avatar({required this.name, required this.colorHex, this.pictureUrl});
 
   final String name;
   final String colorHex;
+  final String? pictureUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -212,15 +271,24 @@ class _Avatar extends StatelessWidget {
             .take(2)
             .map((w) => w[0].toUpperCase())
             .join();
+    final double radius = 32.0;
+    if (pictureUrl != null && pictureUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(pictureUrl!),
+        backgroundColor: _parseHex(colorHex),
+      );
+    }
+
     return CircleAvatar(
-      radius: 32,
+      radius: radius,
       backgroundColor: _parseHex(colorHex),
       child: Text(
         initials,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
-          fontSize: 22,
+          fontSize: radius * 0.7,
         ),
       ),
     );

@@ -24,7 +24,7 @@ import {
 
 // Base URL of the API. Per the foundations doc this belongs in config, not
 // hardcoded — see import.meta.env usage below.
-const API_BASE = import.meta.env.VITE_API_BASE ?? "https://tribo-497810.ew.r.appspot.com/rest";
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "https://tribo-497810.ew.r.appspot.com/rest";
 
 /** Thrown when a request fails; carries the status and parsed error body. */
 /** Thrown when a request fails; carries the status and parsed error body. */

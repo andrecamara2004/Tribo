@@ -7,13 +7,15 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
   listClans, joinClan, leaveClan, createClan,
-  getClanMessages, sendClanMessage, getClanMembers,
+  getClanMessages, sendClanMessage, getClanMembers, uploadClanPicture,
   type Clan, type ClanMessage, type ClanMember,
 } from "../api/clans";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
+import { Avatar } from "../components/Avatar";
 import { ClanRankingSection } from "../components/ClanRankingSection";
+import { ImageCropperModal } from "../components/ImageCropperModal";
 
 type Tab = "chat" | "clans" | "ranking";
 
@@ -149,14 +151,7 @@ function ClanChat({ clanId, myClanName, myClanColor }: {
                 }}>
                   {/* Avatar */}
                   {!isMe && (
-                    <div style={{
-                      width: 28, height: 28, borderRadius: "50%",
-                      background: myClanColor, display: "flex",
-                      alignItems: "center", justifyContent: "center",
-                      color: "#fff", fontWeight: 700, fontSize: 11, flex: "none",
-                    }}>
-                      {msg.fullName.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar name={msg.fullName} color={myClanColor} size="sm" pictureUrl={msg.pictureUrl} />
                   )}
                   <div style={{ maxWidth: "72%" }}>
                     {!isMe && (
@@ -281,13 +276,7 @@ function ClanInfoModal({
                 <li key={m.id} style={{
                   padding: "12px 20px", display: "flex", alignItems: "center", gap: 12,
                 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: "50%", background: clanColor,
-                    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 700, fontSize: 14,
-                  }}>
-                    {m.fullName.charAt(0).toUpperCase()}
-                  </div>
+                  <Avatar name={m.fullName} color={clanColor} pictureUrl={m.pictureUrl} />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{m.fullName}</div>
                     <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "capitalize" }}>
@@ -317,6 +306,10 @@ export function ClanPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedClanInfo, setSelectedClanInfo] = useState<{ id: string; name: string; tag: string; color: string; } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const myClanId = profile?.clan?.id ?? null;
   const [tab, setTab] = useState<Tab>(myClanId ? "chat" : "clans");
@@ -370,6 +363,30 @@ export function ClanPage() {
       setForm({ name: "", tag: "", color: "#00B86B" });
     });
   }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setImageToCrop(URL.createObjectURL(file));
+      e.target.value = "";
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setImageToCrop(null);
+    if (!myClanId) return;
+    setIsUploading(true);
+    try {
+      await uploadClanPicture(myClanId, croppedBlob);
+      await refreshProfile();
+      await reloadClans();
+    } catch (e) {
+      console.error("Failed to upload clan picture", e);
+      alert("Failed to upload picture. Only the clan owner can change the clan picture.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const tabs: { key: Tab; label: string; icon: string; disabled?: boolean }[] = [
     { key: "chat", label: "Chat", icon: "🗪", disabled: !myClanId },
@@ -429,6 +446,20 @@ export function ClanPage() {
 
             {myClanId && profile?.clan ? (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ position: "relative", cursor: "pointer", opacity: isUploading ? 0.5 : 1 }} onClick={() => fileInputRef.current?.click()}>
+                  <Avatar name={profile.clan.name} color={profile.clan.color} size="lg" pictureUrl={profile.clan.pictureUrl} />
+                  <div style={{ position: "absolute", bottom: -4, right: -4, background: "var(--primary)", color: "#fff", borderRadius: "50%", padding: 4, display: "flex" }}>
+                    <Icon name="camera" size={12} />
+                  </div>
+                </div>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+                {imageToCrop && (
+                  <ImageCropperModal
+                    imageSrc={imageToCrop}
+                    onClose={() => setImageToCrop(null)}
+                    onCropComplete={handleCropComplete}
+                  />
+                )}
                 <span className="clan-tag-pill" style={{ marginTop: 0 }}>
                   <span className="dot" style={{ background: profile.clan.color }} />
                   {profile.clan.name} · {profile.clan.tag}
@@ -506,11 +537,7 @@ export function ClanPage() {
                         padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
                         cursor: "pointer", borderBottom: "1px solid var(--line)"
                       }}>
-                        <span className="clan-tag" style={{
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                          width: 28, height: 28, borderRadius: 6, color: "#fff", fontWeight: 800,
-                          fontSize: 10, background: c.color, flex: "none",
-                        }}>{c.tag}</span>
+                        <Avatar name={c.name} color={c.color} pictureUrl={c.pictureUrl} />
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{c.name}</div>
                       </li>
                     ))}
@@ -534,11 +561,7 @@ export function ClanPage() {
               <ul className="roster-list">
                 {clans.map((c) => (
                   <li key={c.id} onClick={() => setSelectedClanInfo({ id: c.id, name: c.name, tag: c.tag, color: c.color })} style={{ cursor: "pointer" }}>
-                    <span className="clan-tag" style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      width: 32, height: 32, borderRadius: 8, color: "#fff", fontWeight: 800,
-                      fontSize: 11, background: c.color, flex: "none",
-                    }}>{c.tag}</span>
+                    <Avatar name={c.name} color={c.color} pictureUrl={c.pictureUrl} />
                     <div>
                       <strong style={{ fontSize: 14 }}>{c.name}</strong>
                       <small style={{ display: "block", color: "var(--muted)" }}>

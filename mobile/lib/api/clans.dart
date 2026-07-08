@@ -13,6 +13,7 @@ class Clan {
   final String tag;
   final String color;
   final String ownerId;
+  final String? pictureUrl;
   final int memberCount;
 
   const Clan({
@@ -21,6 +22,7 @@ class Clan {
     required this.tag,
     required this.color,
     required this.ownerId,
+    this.pictureUrl,
     required this.memberCount,
   });
 
@@ -30,6 +32,7 @@ class Clan {
         tag: (j['tag'] ?? '') as String,
         color: (j['color'] ?? '#888888') as String,
         ownerId: (j['ownerId'] ?? '') as String,
+        pictureUrl: j['pictureUrl'] as String?,
         memberCount: (j['memberCount'] as num?)?.toInt() ?? 0,
       );
 }
@@ -50,6 +53,7 @@ class ClanRankRow {
   final String name;
   final String tag;
   final String color;
+  final String? pictureUrl;
   final int members;
   final double totalKm;
   final double monthlyKm;
@@ -66,6 +70,7 @@ class ClanRankRow {
     required this.name,
     required this.tag,
     required this.color,
+    this.pictureUrl,
     required this.members,
     required this.totalKm,
     required this.monthlyKm,
@@ -83,6 +88,7 @@ class ClanRankRow {
         name: (j['name'] ?? '') as String,
         tag: (j['tag'] ?? '') as String,
         color: (j['color'] ?? '#888888') as String,
+        pictureUrl: j['pictureUrl'] as String?,
         members: (j['members'] as num?)?.toInt() ?? 0,
         totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,
         monthlyKm: (j['monthlyKm'] as num?)?.toDouble() ?? 0,
@@ -159,6 +165,17 @@ class ClansApi {
         as Map<String, dynamic>?;
     if (data == null) throw Exception('Send returned no body.');
     return ClanMessage.fromJson(data);
+  }
+
+  /// POST /clans/{id}/picture
+  Future<void> uploadClanPicture(String id, List<int> fileBytes, String filename, String mimeType) async {
+    await _client.postMultipart(
+      '/clans/$id/picture',
+      fileField: 'file',
+      fileBytes: fileBytes,
+      filename: filename,
+      mimeType: mimeType,
+    );
   }
 }
 

@@ -9,6 +9,7 @@ export interface FeedAuthor {
   name: string;
   clanName: string | null;
   color: string;
+  pictureUrl?: string;
 }
 
 export interface FeedItem {
@@ -59,7 +60,7 @@ export interface Comment {
   id: string;
   text: string;
   createdAt: string;
-  author: { userId: string; name: string; clanName: string | null; color: string };
+  author: FeedAuthor;
 }
 
 /** GET /feed/{itemId}/comments — oldest first. */

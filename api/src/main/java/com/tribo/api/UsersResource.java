@@ -35,6 +35,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import java.io.InputStream;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+
 /**
  * User endpoints.
  *
@@ -87,7 +91,7 @@ public class UsersResource {
             Optional<Clan> c = CLANS.findById(u.clanId());
             if (c.isPresent()) {
                 Clan cl = c.get();
-                clan = new ClanRef(cl.id(), cl.name(), cl.tag(), cl.color());
+                clan = new ClanRef(cl.id(), cl.name(), cl.tag(), cl.color(), cl.pictureUrl());
             }
             // If the clan was deleted out from under the user, we simply report
             // no clan rather than a dangling reference.
@@ -98,10 +102,49 @@ public class UsersResource {
         MeResponse body = new MeResponse(
                 u.id(), u.email(), u.fullName(), u.age(), u.role().name(),
                 u.verified(), u.profileVisibility().name(), u.createdAt().toString(),
-                handleFor(u.email()), AvatarColor.forId(u.id()), clan,
+                handleFor(u.email()), AvatarColor.forId(u.id()), u.pictureUrl(), clan,
                 vol.events(), vol.staffEligible(), vol.points(), u.weeklyGoalKm(),
                 achievementsFor(stats, vol));
         return Response.ok(body).build();
+    }
+
+    // Upload profile picture
+
+    @POST
+    @Path("/me/picture")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response uploadPicture(
+            @Context ContainerRequestContext ctx,
+            @FormDataParam("file") InputStream fileInputStream,
+            @FormDataParam("file") FormDataContentDisposition fileDetail) {
+
+        AuthenticatedUser caller = authUser(ctx);
+        User u = USERS.findById(caller.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
+
+        if (fileInputStream == null || fileDetail == null) {
+            throw new ValidationException("No file uploaded");
+        }
+
+        // Upload to GCS
+        // Note: For simplicity we assume jpeg/png here. Real app would check
+        // fileDetail.getFileName()
+        String contentType = "image/jpeg";
+        if (fileDetail.getFileName() != null && fileDetail.getFileName().toLowerCase().endsWith(".png")) {
+            contentType = "image/png";
+        }
+
+        String pictureUrl = StorageService.uploadImage(fileInputStream, contentType);
+
+        // Update User
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), pictureUrl);
+        USERS.save(updated);
+
+        return me(ctx);
     }
 
     // Set weekly distance goal
@@ -116,7 +159,7 @@ public class UsersResource {
         if (km < 0)
             throw new ValidationException("weeklyGoalKm cannot be negative.");
         USERS.setWeeklyGoal(caller.userId(), km);
-        return me(ctx); 
+        return me(ctx);
     }
 
     // Get running stats
@@ -208,8 +251,7 @@ public class UsersResource {
         return out;
     }
 
-
-    public record ClanRef(String id, String name, String tag, String color) {
+    public record ClanRef(String id, String name, String tag, String color, String pictureUrl) {
     }
 
     public record Achievement(String icon, String title, String sub) {
@@ -224,7 +266,7 @@ public class UsersResource {
     public record MeResponse(
             String userId, String email, String fullName, int age, String role,
             boolean verified, String profileVisibility, String createdAt,
-            String handle, String avatarColor, ClanRef clan,
+            String handle, String avatarColor, String pictureUrl, ClanRef clan,
             int volunteerEvents, boolean staffEligible, long volunteerPoints,
             double weeklyGoalKm, List<Achievement> achievements) {
     }
