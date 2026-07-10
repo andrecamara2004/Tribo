@@ -17,6 +17,7 @@ export interface MapPoint {
   location: string;
   latitude: number;
   longitude: number;
+  kind?: "VOLUNTEER" | "RUN";
 }
 
 function Placeholder({ note }: { note: string }) {
@@ -61,24 +62,26 @@ export function LocationMap({ lat, lng }: { lat: number; lng: number }) {
 
 /** Map of many activities as pins, with an info window + "view" action. */
 export function ActivitiesMap({
-  points, selectedId, onSelect, onView,
+  points, selectedId, onSelect, onView, focusLocation,
 }: {
   points: MapPoint[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onView: (id: string) => void;
+  focusLocation?: { latitude: number; longitude: number; zoom: number } | null;
 }) {
   if (!KEY) return <Placeholder note="Map unavailable — set VITE_GOOGLE_MAPS_API_KEY." />;
-  return <ActivitiesMapImpl points={points} selectedId={selectedId} onSelect={onSelect} onView={onView} />;
+  return <ActivitiesMapImpl points={points} selectedId={selectedId} onSelect={onSelect} onView={onView} focusLocation={focusLocation} />;
 }
 
 function ActivitiesMapImpl({
-  points, selectedId, onSelect, onView,
+  points, selectedId, onSelect, onView, focusLocation,
 }: {
   points: MapPoint[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onView: (id: string) => void;
+  focusLocation?: { latitude: number; longitude: number; zoom: number } | null;
 }) {
   const { isLoaded, loadError } = useJsApiLoader({ id: "tribo-gmaps", googleMapsApiKey: KEY! });
   if (loadError) return <Placeholder note="Map failed to load — check the API key / billing." />;
@@ -86,6 +89,11 @@ function ActivitiesMapImpl({
 
   // Fit the viewport to all pins on load (or center on the single pin).
   const onLoad = (map: google.maps.Map) => {
+    if (focusLocation) {
+      map.setCenter({ lat: focusLocation.latitude, lng: focusLocation.longitude });
+      map.setZoom(focusLocation.zoom);
+      return;
+    }
     if (points.length === 0) return;
     if (points.length === 1) {
       map.setCenter({ lat: points[0].latitude, lng: points[0].longitude });
@@ -108,9 +116,25 @@ function ActivitiesMapImpl({
       onClick={() => onSelect(null)}
       options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
     >
-      {points.map((p) => (
-        <MarkerF key={p.id} position={{ lat: p.latitude, lng: p.longitude }} onClick={() => onSelect(p.id)} />
-      ))}
+      {points.map((p) => {
+        const icon = {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: p.kind === "RUN" ? "#2563eb" : "#16a34a",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        };
+
+        return (
+          <MarkerF
+            key={p.id}
+            position={{ lat: p.latitude, lng: p.longitude }}
+            onClick={() => onSelect(p.id)}
+            icon={icon}
+          />
+        );
+      })}
       {selected && (
         <InfoWindowF
           position={{ lat: selected.latitude, lng: selected.longitude }}

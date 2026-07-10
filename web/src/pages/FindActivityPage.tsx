@@ -1,19 +1,48 @@
 // src/pages/FindActivityPage.tsx
 // "Find activities" — all published activities as pins on one map, with a side
 // list. Backend already returns lat/lng on the activities list; this is map-only.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useJsApiLoader } from "@react-google-maps/api";
 import { listActivities, type Activity } from "../api/activities";
 import { Shell } from "../components/Shell";
 import { ActivitiesMap, type MapPoint } from "../components/MapView";
 import { Icon } from "../components/Icon";
 import { formatWhen } from "../lib/activity";
 
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
+type LocationFilter = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  zoom: number;
+  viewport?: { north: number; south: number; east: number; west: number } | null;
+};
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function FindActivityPage() {
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<LocationFilter | null>(null);
+  const { isLoaded } = useJsApiLoader({
+    id: "tribo-find-activities",
+    googleMapsApiKey: MAPS_KEY ?? "",
+    libraries: ["places"],
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -32,10 +61,75 @@ export function FindActivityPage() {
     };
   }, []);
 
-  const located = items.filter((a) => a.latitude != null && a.longitude != null);
+  useEffect(() => {
+    if (!isLoaded || !inputRef.current || !window.google?.maps?.places) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ["(cities)"],
+      fields: ["formatted_address", "geometry", "name"],
+    });
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      const geometry = place.geometry?.location;
+      const viewport = place.geometry?.viewport;
+      if (!geometry) return;
+
+      const nextFilter: LocationFilter = {
+        label: place.formatted_address ?? place.name ?? "Selected location",
+        latitude: geometry.lat(),
+        longitude: geometry.lng(),
+        zoom: viewport ? 10 : 13,
+        viewport: viewport
+          ? {
+            north: viewport.getNorthEast().lat(),
+            south: viewport.getSouthWest().lat(),
+            east: viewport.getNorthEast().lng(),
+            west: viewport.getSouthWest().lng(),
+          }
+          : null,
+      };
+      setLocationFilter(nextFilter);
+      setSelectedId(null);
+    });
+
+    return () => {
+      window.google.maps.event.removeListener(listener);
+    };
+  }, [isLoaded]);
+
+  const filteredItems = useMemo(() => {
+    if (!locationFilter) return items;
+
+    return items.filter((a) => {
+      if (a.latitude == null || a.longitude == null) return false;
+      if (locationFilter.viewport) {
+        return (
+          a.latitude <= locationFilter.viewport.north &&
+          a.latitude >= locationFilter.viewport.south &&
+          a.longitude <= locationFilter.viewport.east &&
+          a.longitude >= locationFilter.viewport.west
+        );
+      }
+
+      const distance = haversineKm(
+        a.latitude,
+        a.longitude,
+        locationFilter.latitude,
+        locationFilter.longitude,
+      );
+      return distance <= 40;
+    });
+  }, [items, locationFilter]);
+
+  const located = filteredItems.filter((a) => a.latitude != null && a.longitude != null);
   const points: MapPoint[] = located.map((a) => ({
-    id: a.id, title: a.title, location: a.location,
-    latitude: a.latitude as number, longitude: a.longitude as number,
+    id: a.id,
+    title: a.title,
+    location: a.location,
+    latitude: a.latitude as number,
+    longitude: a.longitude as number,
+    kind: a.eventKind,
   }));
 
   return (
@@ -47,13 +141,45 @@ export function FindActivityPage() {
         </div>
       </div>
 
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search a city or place"
+          style={{
+            minWidth: 260,
+            flex: 1,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+          }}
+        />
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            setLocationFilter(null);
+            if (inputRef.current) inputRef.current.value = "";
+          }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {locationFilter && (
+        <div className="sub" style={{ marginBottom: 12 }}>
+          Showing activities in <strong>{locationFilter.label}</strong>
+        </div>
+      )}
+
       {loading ? (
         <p className="state-msg">Loading…</p>
       ) : (
         <div className="find-layout">
           <div className="find-list">
-            {items.length === 0 && <p className="state-msg">No activities yet.</p>}
-            {items.map((a) => {
+            {filteredItems.length === 0 && <p className="state-msg">No activities found for this location.</p>}
+            {filteredItems.map((a) => {
               const hasLoc = a.latitude != null && a.longitude != null;
               return (
                 <button
@@ -82,6 +208,7 @@ export function FindActivityPage() {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onView={(id) => navigate(`/activities/${id}`)}
+                focusLocation={locationFilter ? { latitude: locationFilter.latitude, longitude: locationFilter.longitude, zoom: locationFilter.zoom } : null}
               />
             )}
           </div>
