@@ -5,10 +5,13 @@ import { useAuth } from "../auth/AuthContext";
 import {
   getActivity,
   getRoster,
+  getReviews,
+  submitReview,
   joinActivity,
   withdrawFromActivity,
   cancelActivity,
   type Activity,
+  type Review,
   type Roster,
 } from "../api/activities";
 import { ApiError } from "../api/http";
@@ -30,6 +33,11 @@ export function ActivityDetailPage() {
 
   const [activity, setActivity] = useState<Activity | null>(null);
   const [roster, setRoster] = useState<Roster | null>(null);
+
+  //Review const
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
   // Computed once on load (Date.now() is impure — never call it during render).
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,17 +53,33 @@ export function ActivityDetailPage() {
     (async () => {
       try {
         const a = await getActivity(id);
+
         setActivity(a);
         setStarted(new Date(a.startsAt).getTime() < Date.now());
-        const owner = user && (user.userId === a.ownerId || PRIVILEGED.includes(user.role));
-        if (owner) setRoster(await getRoster(id));
+
+        const reviewData = await getReviews(id);
+        setReviews(reviewData.reviews);
+
+        const owner =
+          user &&
+          (user.userId === a.ownerId ||
+            PRIVILEGED.includes(user.role));
+
+        if (owner) {
+          setRoster(await getRoster(id));
+        }
+
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Failed to load activity.");
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Failed to load activity."
+        );
       } finally {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [id]);
 
   async function act(fn: () => Promise<void>, ok: string) {
@@ -65,8 +89,8 @@ export function ActivityDetailPage() {
     try {
       await fn();
       setNotice(ok);
-      setActivity(await getActivity(id)); // refresh counts + the caller's role
-      if (isOwner) setRoster(await getRoster(id)); // refresh roster after changes
+      setActivity(await getActivity(id));
+      if (isOwner) setRoster(await getRoster(id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed.");
     } finally {
@@ -80,6 +104,32 @@ export function ActivityDetailPage() {
       const updated = await cancelActivity(id);
       setActivity(updated);
     }, "Activity cancelled.");
+  }
+
+  async function onSubmitReview() {
+    try {
+      await submitReview(id, {
+        rating,
+        comment,
+      });
+
+      const updated = await getActivity(id);
+      setActivity(updated);
+
+      const reviewData = await getReviews(id);
+      setReviews(reviewData.reviews);
+
+      setRating(5);
+      setComment("");
+
+      setNotice("Review submitted!");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to submit review."
+      );
+    }
   }
 
   if (loading)
@@ -161,6 +211,37 @@ export function ActivityDetailPage() {
           </div>
         )}
 
+        <div className="card" style={{ marginTop: 20 }}>
+          <h3>Community Rating</h3>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 10,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+              }}
+            >
+              ⭐ {activity.averageRating?.toFixed(1) ?? "0.0"}
+            </span>
+
+            <span
+              style={{
+                color: "#666",
+              }}
+            >
+              ({activity.reviewCount ?? 0} review
+              {(activity.reviewCount ?? 0) !== 1 ? "s" : ""})
+            </span>
+          </div>
+        </div>
+
         {notice && <p className="form-notice" style={{ marginTop: 16 }}>{notice}</p>}
         {error && <p className="form-error" style={{ marginTop: 16 }}>{error}</p>}
 
@@ -240,6 +321,123 @@ export function ActivityDetailPage() {
             )}
           </div>
         )}
+
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="card-title">
+            <h3>Reviews</h3>
+
+            <small>
+              {reviews.length} review
+              {reviews.length !== 1 ? "s" : ""}
+            </small>
+          </div>
+
+          {reviews.length === 0 ? (
+            <p className="state-msg">
+              No reviews yet.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+              }}
+            >
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  style={{
+                    borderBottom: "1px solid #eee",
+                    paddingBottom: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <strong>{review.userId}</strong>
+
+                    <span>
+                      {"⭐".repeat(review.rating)}
+                    </span>
+                  </div>
+
+                  {review.comment && (
+                    <p
+                      style={{
+                        marginTop: 8,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {review.comment}
+                    </p>
+                  )}
+
+                  <small
+                    style={{
+                      color: "#888",
+                    }}
+                  >
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {past &&
+          myRole &&
+          !reviews.some((r) => r.userId === user?.userId) && (
+
+            <div className="card" style={{ marginTop: 24 }}>
+              <div className="card-title">
+                <h3>Leave a Review</h3>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                <label>Rating</label>
+
+                <select
+                  value={rating}
+                  onChange={(e) => setRating(Number(e.target.value))}
+                  style={{ maxWidth: 180 }}
+                >
+                  <option value={5}>⭐⭐⭐⭐⭐ (5)</option>
+                  <option value={4}>⭐⭐⭐⭐ (4)</option>
+                  <option value={3}>⭐⭐⭐ (3)</option>
+                  <option value={2}>⭐⭐ (2)</option>
+                  <option value={1}>⭐ (1)</option>
+                </select>
+
+                <label>Comment</label>
+
+                <textarea
+                  rows={4}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Tell others how the activity was..."
+                />
+
+                <button
+                  className="btn btn-primary"
+                  disabled={busy}
+                  onClick={onSubmitReview}
+                >
+                  Submit Review
+                </button>
+              </div>
+            </div>
+          )}
 
         {isOwner && roster && (
           <div className="card" style={{ marginTop: 24 }}>

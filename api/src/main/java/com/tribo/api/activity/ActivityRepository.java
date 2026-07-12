@@ -58,7 +58,9 @@ public class ActivityRepository {
                 .set("verifiedBy", a.verifiedBy().name())
                 .set("staffCapacity", a.staffCapacity())
                 .set("pointsParticipant", a.pointsParticipant())
-                .set("pointsStaff", a.pointsStaff());
+                .set("pointsStaff", a.pointsStaff())
+                .set("reviewCount", a.reviewCount())
+                .set("averageRating", a.averageRating());
 
         List<com.google.cloud.datastore.Value<?>> tagValues = new ArrayList<>();
         for (String t : a.tags()) {
@@ -153,7 +155,9 @@ public class ActivityRepository {
                 e.contains("pointsStaff") ? (int) e.getLong("pointsStaff") : 0,
                 tags,
                 e.contains("latitude") ? e.getDouble("latitude") : null,
-                e.contains("longitude") ? e.getDouble("longitude") : null);
+                e.contains("longitude") ? e.getDouble("longitude") : null,
+                e.contains("reviewCount") ? (int) e.getLong("reviewCount") : 0,
+                e.contains("averageRating") ? e.getDouble("averageRating") : 0.0);
     }
 
     /** Counts all activities. Keys-only query for efficiency. */
@@ -182,4 +186,22 @@ public class ActivityRepository {
         }
         return count;
     }
+
+    public List<Activity> listByRating() {
+
+        Query<Entity> q = Query.newEntityQueryBuilder()
+                .setKind(KIND)
+                .build();
+
+        QueryResults<Entity> results = DATASTORE.run(q);
+
+        List<Activity> activities = new ArrayList<>();
+
+        while (results.hasNext()) {
+            activities.add(toActivity(results.next()));
+        }
+        activities.sort((a, b) -> Double.compare(b.averageRating(), a.averageRating()));
+        return activities;
+    }
+
 }
