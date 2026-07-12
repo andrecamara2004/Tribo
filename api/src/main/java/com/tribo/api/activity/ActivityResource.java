@@ -33,27 +33,29 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Activity management endpoints (Sprint 2).
  *
- *   POST   /rest/activities           create        (verified ACTIVITY_MANAGER/PARTNER/SYSADMIN)
- *   GET    /rest/activities           list/discover (any authenticated user)
- *   GET    /rest/activities/{id}      detail        (any authenticated user)
- *   PUT    /rest/activities/{id}      edit          (owner or privileged)
- *   POST   /rest/activities/{id}/cancel  cancel     (owner or privileged)
- *   POST   /rest/activities/{id}/approve approve    (BACKOFFICE/SYSADMIN)
- *   POST   /rest/activities/{id}/reject  reject     (BACKOFFICE/SYSADMIN)
+ * POST /rest/activities create (verified ACTIVITY_MANAGER/PARTNER/SYSADMIN)
+ * GET /rest/activities list/discover (any authenticated user)
+ * GET /rest/activities/{id} detail (any authenticated user)
+ * PUT /rest/activities/{id} edit (owner or privileged)
+ * POST /rest/activities/{id}/cancel cancel (owner or privileged)
+ * POST /rest/activities/{id}/approve approve (BACKOFFICE/SYSADMIN)
+ * POST /rest/activities/{id}/reject reject (BACKOFFICE/SYSADMIN)
  *
  * APPROVAL: manager/partner submissions are created PENDING_APPROVAL and stay
- * out of the public catalog until a backoffice approves them; a SYSADMIN-created
+ * out of the public catalog until a backoffice approves them; a
+ * SYSADMIN-created
  * activity is PUBLISHED immediately.
  *
  * Authentication is enforced for the whole class by JwtAuthFilter (no
+ * 
  * @PublicEndpoint). Role gating uses @AllowedRoles; ownership uses
- * OwnershipGuard. Participation sub-resources live in ParticipationResource.
+ *                   OwnershipGuard. Participation sub-resources live in
+ *                   ParticipationResource.
  */
 @Path("/activities")
 public class ActivityResource {
@@ -70,7 +72,7 @@ public class ActivityResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @AllowedRoles({Role.ACTIVITY_MANAGER, Role.PARTNER, Role.SYSADMIN})
+    @AllowedRoles({ Role.ACTIVITY_MANAGER, Role.PARTNER, Role.SYSADMIN })
     public Response create(@Context ContainerRequestContext ctx, ActivityRequest req) {
         AuthenticatedUser caller = authUser(ctx);
         requireVerified(caller);
@@ -86,14 +88,14 @@ public class ActivityResource {
                 : ActivityStatus.PENDING_APPROVAL;
         Activity activity = new Activity(
                 id,
-                caller.userId(),          // owner is the caller, from the JWT
+                caller.userId(), // owner is the caller, from the JWT
                 v.title, v.description, v.category, v.location,
                 v.startsAt, v.endsAt, v.capacity,
                 initialStatus,
                 now, now,
                 v.eventKind, v.host, v.distanceKm, v.verifiedBy,
                 v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags,
-                v.latitude, v.longitude);
+                v.latitude, v.longitude, 0, 0.0);
         ACTIVITIES.save(activity);
 
         return Response.created(URI.create("/rest/activities/" + id))
@@ -114,11 +116,13 @@ public class ActivityResource {
         AuthenticatedUser caller = authUser(ctx);
         ActivityStatus status = parseStatusFilter(statusParam);
         int limit = Math.max(1, Math.min(limitParam, MAX_LIMIT));
-        if (limit == 0) limit = DEFAULT_LIMIT;
+        if (limit == 0)
+            limit = DEFAULT_LIMIT;
 
         ActivityPage page = ACTIVITIES.list(status, limit, cursor);
         List<Map<String, Object>> items = new ArrayList<>();
-        for (Activity a : page.items()) items.add(view(a, caller.userId()));
+        for (Activity a : page.items())
+            items.add(view(a, caller.userId()));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("items", items);
@@ -145,8 +149,8 @@ public class ActivityResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response update(@Context ContainerRequestContext ctx,
-                           @PathParam("id") String id,
-                           ActivityRequest req) {
+            @PathParam("id") String id,
+            ActivityRequest req) {
         AuthenticatedUser caller = authUser(ctx);
         Activity existing = ACTIVITIES.findById(id)
                 .orElseThrow(() -> new NotFoundException("No activity with id " + id + "."));
@@ -158,11 +162,14 @@ public class ActivityResource {
                 existing.id(), existing.ownerId(),
                 v.title, v.description, v.category, v.location,
                 v.startsAt, v.endsAt, v.capacity,
-                existing.status(),          // status changes go through /cancel, not PUT
+                existing.status(), // status changes go through /cancel, not PUT
                 existing.createdAt(), Instant.now(),
                 v.eventKind, v.host, v.distanceKm, v.verifiedBy,
                 v.staffCapacity, v.pointsParticipant, v.pointsStaff, v.tags,
-                v.latitude, v.longitude);
+                v.latitude,
+                v.longitude,
+                existing.reviewCount(),
+                existing.averageRating());
         ACTIVITIES.save(updated);
         return Response.ok(updated).build();
     }
@@ -189,7 +196,10 @@ public class ActivityResource {
                 existing.createdAt(), Instant.now(),
                 existing.eventKind(), existing.host(), existing.distanceKm(), existing.verifiedBy(),
                 existing.staffCapacity(), existing.pointsParticipant(), existing.pointsStaff(),
-                existing.tags(), existing.latitude(), existing.longitude());
+                existing.tags(), existing.latitude(),
+                existing.longitude(),
+                existing.reviewCount(),
+                existing.averageRating());
         ACTIVITIES.save(cancelled);
         return Response.ok(cancelled).build();
     }
@@ -199,7 +209,7 @@ public class ActivityResource {
     @POST
     @Path("/{id}/approve")
     @Produces(MediaType.APPLICATION_JSON)
-    @AllowedRoles({Role.BACKOFFICE, Role.SYSADMIN})
+    @AllowedRoles({ Role.BACKOFFICE, Role.SYSADMIN })
     public Response approve(@PathParam("id") String id) {
         return moderate(id, ActivityStatus.PUBLISHED);
     }
@@ -207,7 +217,7 @@ public class ActivityResource {
     @POST
     @Path("/{id}/reject")
     @Produces(MediaType.APPLICATION_JSON)
-    @AllowedRoles({Role.BACKOFFICE, Role.SYSADMIN})
+    @AllowedRoles({ Role.BACKOFFICE, Role.SYSADMIN })
     public Response reject(@PathParam("id") String id) {
         return moderate(id, ActivityStatus.REJECTED);
     }
@@ -227,7 +237,10 @@ public class ActivityResource {
                 existing.createdAt(), Instant.now(),
                 existing.eventKind(), existing.host(), existing.distanceKm(), existing.verifiedBy(),
                 existing.staffCapacity(), existing.pointsParticipant(), existing.pointsStaff(),
-                existing.tags(), existing.latitude(), existing.longitude());
+                existing.tags(), existing.latitude(),
+                existing.longitude(),
+                existing.reviewCount(),
+                existing.averageRating());
         ACTIVITIES.save(moderated);
         return Response.ok(moderated).build();
     }
@@ -244,7 +257,8 @@ public class ActivityResource {
 
     /** Privileged roles bypass the verified gate; others must be verified (D-1). */
     private void requireVerified(AuthenticatedUser caller) {
-        if (OwnershipGuard.isPrivileged(caller.role())) return;
+        if (OwnershipGuard.isPrivileged(caller.role()))
+            return;
         User u = USERS.findById(caller.userId())
                 .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
         if (!u.verified()) {
@@ -255,7 +269,8 @@ public class ActivityResource {
     }
 
     private static ActivityStatus parseStatusFilter(String s) {
-        if (s == null || s.isBlank() || "ALL".equalsIgnoreCase(s)) return null;
+        if (s == null || s.isBlank() || "ALL".equalsIgnoreCase(s))
+            return null;
         try {
             return ActivityStatus.valueOf(s.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -265,17 +280,19 @@ public class ActivityResource {
 
     /** Parsed + validated activity fields (incl. volunteer extensions). */
     private record Validated(String title, String description, String category, String location,
-                             Instant startsAt, Instant endsAt, int capacity,
-                             EventKind eventKind, String host, double distanceKm, VerifiedBy verifiedBy,
-                             int staffCapacity, int pointsParticipant, int pointsStaff, List<String> tags,
-                             Double latitude, Double longitude) {
+            Instant startsAt, Instant endsAt, int capacity,
+            EventKind eventKind, String host, double distanceKm, VerifiedBy verifiedBy,
+            int staffCapacity, int pointsParticipant, int pointsStaff, List<String> tags,
+            Double latitude, Double longitude) {
     }
 
     private static Validated validate(ActivityRequest req) {
-        if (req == null) throw new ValidationException("Request body is required.");
+        if (req == null)
+            throw new ValidationException("Request body is required.");
 
         String title = trimOrNull(req.title);
-        if (title == null) throw new ValidationException("Title is required.");
+        if (title == null)
+            throw new ValidationException("Title is required.");
 
         if (req.startsAt == null || req.endsAt == null) {
             throw new ValidationException("startsAt and endsAt are required.");
@@ -304,7 +321,8 @@ public class ActivityResource {
         VerifiedBy verifiedBy = parseEnum(req.verifiedBy, VerifiedBy.class, VerifiedBy.PEER, "verifiedBy");
         String host = req.host == null ? "" : req.host.trim();
         double distanceKm = req.distanceKm == null ? 0.0 : req.distanceKm;
-        if (distanceKm < 0) throw new ValidationException("distanceKm cannot be negative.");
+        if (distanceKm < 0)
+            throw new ValidationException("distanceKm cannot be negative.");
         int staffCapacity = nonNegative(req.staffCapacity, "staffCapacity");
         int pointsParticipant = nonNegative(req.pointsParticipant, "pointsParticipant");
         int pointsStaff = nonNegative(req.pointsStaff, "pointsStaff");
@@ -312,9 +330,11 @@ public class ActivityResource {
         List<String> tags = new ArrayList<>();
         if (req.tags != null) {
             for (String t : req.tags) {
-                if (t == null) continue;
+                if (t == null)
+                    continue;
                 String tag = t.trim().toLowerCase();
-                if (!tag.isEmpty()) tags.add(tag);
+                if (!tag.isEmpty())
+                    tags.add(tag);
             }
         }
 
@@ -334,7 +354,8 @@ public class ActivityResource {
     }
 
     private static <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback, String field) {
-        if (raw == null || raw.isBlank()) return fallback;
+        if (raw == null || raw.isBlank())
+            return fallback;
         try {
             return Enum.valueOf(type, raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -343,8 +364,10 @@ public class ActivityResource {
     }
 
     private static int nonNegative(Integer value, String field) {
-        if (value == null) return 0;
-        if (value < 0) throw new ValidationException(field + " cannot be negative.");
+        if (value == null)
+            return 0;
+        if (value < 0)
+            throw new ValidationException(field + " cannot be negative.");
         return value;
     }
 
@@ -376,11 +399,14 @@ public class ActivityResource {
         m.put("participantsJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.PARTICIPANT));
         m.put("staffJoined", PARTICIPANTS.countByActivityAndRole(a.id(), ParticipationRole.STAFF));
         m.put("userRole", PARTICIPANTS.findRole(a.id(), callerId).map(Enum::name).orElse(null));
+        m.put("reviewCount", a.reviewCount());
+        m.put("averageRating", a.averageRating());
         return m;
     }
 
     private static String trimOrNull(String s) {
-        if (s == null) return null;
+        if (s == null)
+            return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
