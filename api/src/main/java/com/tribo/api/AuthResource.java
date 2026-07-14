@@ -2,6 +2,7 @@ package com.tribo.api;
 
 import com.tribo.api.error.ConflictException;
 import com.tribo.api.error.ForbiddenException;
+import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.UnauthorizedException;
 import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.JwtIssuer;
@@ -13,14 +14,18 @@ import com.tribo.api.iam.RefreshRequest;
 import com.tribo.api.iam.RegisterRequest;
 import com.tribo.api.iam.RevokedTokenRepository;
 import com.tribo.api.iam.Role;
+import com.tribo.api.iam.SendGridVerificationEmailService;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
+import com.tribo.api.iam.VerificationEmailService;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
-
+import com.tribo.api.iam.ResendVerificationRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -28,11 +33,13 @@ import jakarta.ws.rs.core.Response;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import com.tribo.api.iam.VerificationTokenRepository;
 import com.tribo.api.error.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
@@ -52,6 +59,13 @@ public class AuthResource {
     private static final UserRepository USERS = new UserRepository();
     private static final RevokedTokenRepository REVOKED = new RevokedTokenRepository();
     private static final JwtIssuer JWT = new JwtIssuer();
+    private static final VerificationTokenRepository VERIFICATION_TOKENS = new VerificationTokenRepository();
+
+    // private static final VerificationEmailService EMAIL_VERIFICATION_SERVICE =
+    // new SendGridVerificationEmailService();
+    private static VerificationEmailService emailVerificationService() {
+        return new SendGridVerificationEmailService();
+    }
 
     @Context
     private HttpServletRequest httpRequest;
@@ -65,7 +79,6 @@ public class AuthResource {
     private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int MIN_AGE = 13;
     private static final int MAX_AGE = 120;
-
 
     @POST
     @Path("/register")
@@ -108,19 +121,21 @@ public class AuthResource {
         }
 
         Role role = resolveRequestedRole(req.role);
-        boolean verified;
-        //bootstrap sysadmin
+        boolean approved;
+        // bootstrap sysadmin
         String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
         if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
             // One-time seed: the configured email is created as a verified
             // SYSADMIN so there is a privileged account to verify the rest.
             role = Role.SYSADMIN;
-            verified = true;
+            approved = true;
         } else {
             // END_USER is usable immediately; privileged roles await backoffice
             // verification before they can act (e.g. create activities).
-            verified = (role == Role.END_USER);
+            approved = (role == Role.END_USER);
         }
+
+        boolean emailVerified = false;
 
         String userId = UUID.randomUUID().toString();
         User user = new User(
@@ -134,11 +149,22 @@ public class AuthResource {
                 User.ProfileVisibility.PUBLIC,
                 Instant.now(),
                 false,
-                verified,
-                null, // new users start without a clan 
+                approved,
+                emailVerified,
+                null, // new users start without a clan
                 0.0 // no weekly goal yet
         );
         USERS.save(user);
+
+        // gera token de verificação com validade de 24h
+        String token = UUID.randomUUID().toString();
+        Instant expiresAt = Instant.now().plus(Duration.ofHours(24));
+        VerificationTokenRepository.VerificationToken vt = new VerificationTokenRepository.VerificationToken(
+                token, userId, expiresAt, false);
+        VERIFICATION_TOKENS.save(vt);
+
+        // EMAIL_VERIFICATION_SERVICE.sendVerificationEmail(email, token);
+        emailVerificationService().sendVerificationEmail(email, token);
 
         return Response.created(URI.create("/rest/users/" + userId))
                 .entity(Map.of(
@@ -149,10 +175,12 @@ public class AuthResource {
                 .build();
     }
 
-    /** Roles a user may pick at registration. Privileged roles are excluded (BACKOFFICE and SYSADMIN). */
+    /**
+     * Roles a user may pick at registration. Privileged roles are excluded
+     * (BACKOFFICE and SYSADMIN).
+     */
     private static final java.util.Set<Role> SELF_REGISTERABLE = java.util.EnumSet.of(Role.END_USER,
             Role.ACTIVITY_MANAGER, Role.PARTNER);
-
 
     private static Role resolveRequestedRole(String requested) {
         if (requested == null || requested.isBlank()) {
@@ -195,6 +223,9 @@ public class AuthResource {
         }
 
         User user = found.get();
+        if (!user.emailVerified()) {
+            throw new ForbiddenException("Please verify your email before logging in.");
+        }
         if (user.suspended()) {
             throw new ForbiddenException("This account has been suspended.");
         }
@@ -209,7 +240,9 @@ public class AuthResource {
                 "expiresIn", JWT.accessTokenTtlSeconds(),
                 "userId", user.id(),
                 "role", user.role().name(),
-                "verified", user.verified())).build();
+                "verified", user.verified(),
+                "emailVerified", user.emailVerified()))
+                .build();
     }
 
     @POST
@@ -233,7 +266,7 @@ public class AuthResource {
             throw new UnauthorizedException("Not a refresh token.");
         }
 
-        //reject a refresh token that has been logged out.
+        // reject a refresh token that has been logged out.
         if (REVOKED.isRevoked(decoded.getId())) {
             throw new UnauthorizedException("Refresh token has been revoked.");
         }
@@ -287,6 +320,94 @@ public class AuthResource {
             REVOKED.revoke(jti, decoded.getExpiresAt().toInstant());
         }
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/verify-email")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response verifyEmail(@QueryParam("token") String token) {
+        if (token == null || token.isBlank()) {
+            throw new ValidationException("Verification token is required.");
+        }
+
+        Optional<VerificationTokenRepository.VerificationToken> found = VERIFICATION_TOKENS.findByToken(token);
+        if (found.isEmpty()) {
+            throw new ValidationException("Verification token is invalid.");
+        }
+
+        VerificationTokenRepository.VerificationToken vt = found.get();
+        if (vt.used()) {
+            throw new ValidationException("Verification token has already been used.");
+        }
+        if (vt.expiresAt().isBefore(Instant.now())) {
+            throw new ValidationException("Verification token has expired.");
+        }
+
+        // marca emailVerified=true
+        Optional<User> updated = USERS.setEmailVerified(vt.userId());
+        if (updated.isEmpty()) {
+            throw new NotFoundException("User no longer exists.");
+        }
+
+        VERIFICATION_TOKENS.markUsed(token);
+
+        User user = updated.get();
+        return Response.ok(Map.of(
+                "userId", user.id(),
+                "email", user.email(),
+                "emailVerified", user.emailVerified()))
+                .build();
+    }
+
+    /**
+     * Reenvia email de verificação de conta para utilizadores ainda não
+     * verificados.
+     */
+    @POST
+    @Path("/resend-verification")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response resendVerification(ResendVerificationRequest req) {
+        if (req == null || req.email == null || req.email.isBlank()) {
+            throw new ValidationException("Email is required.");
+        }
+
+        String resendIp = clientIp(httpRequest);
+        if (LoginRateLimiter.isRateLimited(resendIp)) {
+            throw new TooManyRequestsException("Too many requests. Please wait a minute and try again.");
+        }
+
+        String email = req.email.trim().toLowerCase();
+        Optional<User> found = USERS.findByEmail(email);
+
+        // Boas práticas: não revelar se o email existe ou não (evita
+        // enumeração).[web:17]
+        if (found.isEmpty()) {
+            return Response.ok(Map.of(
+                    "message",
+                    "If your email is not verified, you will receive a new verification link shortly.")).build();
+        }
+
+        User user = found.get();
+        if (user.emailVerified()) {
+            return Response.ok(Map.of(
+                    "message",
+                    "This email address is already verified.")).build();
+        }
+
+        // Gera novo token de verificação (24h)
+        String token = UUID.randomUUID().toString();
+        Instant expiresAt = Instant.now().plus(Duration.ofHours(24));
+        VerificationTokenRepository.VerificationToken vt = new VerificationTokenRepository.VerificationToken(token,
+                user.id(), expiresAt, false);
+        VERIFICATION_TOKENS.save(vt);
+
+        // EMAIL_VERIFICATION_SERVICE.sendVerificationEmail(user.email(), token);
+        emailVerificationService().sendVerificationEmail(user.email(), token);
+
+        return Response.ok(Map.of(
+                "message",
+                "Verification email resent. Please check your inbox.")).build();
     }
 
     /**

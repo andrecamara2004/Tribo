@@ -65,8 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(input: RegisterInput) {
-    setUser(await authApi.register(input));
-    await loadProfile();
+    await authApi.register(input);
   }
 
   async function logout() {
