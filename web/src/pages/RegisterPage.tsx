@@ -12,6 +12,7 @@ export function RegisterPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   function update(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -37,7 +38,7 @@ export function RegisterPage() {
         age: ageNum,
         role: form.role,
       });
-      navigate("/activities", { replace: true });
+      setSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed.");
     } finally {
@@ -122,6 +123,12 @@ export function RegisterPage() {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+
+          {success && (
+            <p className="hint">
+              Account created! Verify your email to confirm your account before logging in.
+            </p>
+          )}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
             {busy ? "Creating…" : "Create account"}

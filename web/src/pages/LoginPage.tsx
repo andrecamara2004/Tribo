@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/http";
+import { resendVerification } from "../api/auth";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -23,6 +24,15 @@ export function LoginPage() {
       setError(err instanceof ApiError ? err.message : "Login failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    try {
+      await resendVerification(email);
+      setError("Se o teu email não estiver verificado, enviámos um novo link.");
+    } catch {
+      setError("Não foi possível reenviar o email. Tenta novamente mais tarde.");
     }
   }
 
@@ -85,6 +95,19 @@ export function LoginPage() {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+
+          {/* Botão de reenvio só aparece quando o backend devolve
+              "Please verify your email before logging in." */}
+          {error === "Please verify your email before logging in." && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-block"
+              onClick={onResend}
+              disabled={!email || busy}
+            >
+              Reenviar email de verificação
+            </button>
+          )}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}

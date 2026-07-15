@@ -80,3 +80,19 @@ export async function whoami(): Promise<CurrentUser> {
 
   return user;
 }
+
+/** POST /auth/resend-verification — pede reenvio de email de verificação. */
+export async function resendVerification(email: string): Promise<void> {
+  await apiFetch("/auth/resend-verification", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  await apiFetch(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
+    method: "GET",
+    skipAuth: true,
+  });
+}

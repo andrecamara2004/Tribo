@@ -1,5 +1,8 @@
+// src/pages/VerifyEmailPage.tsx
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { ApiError } from "../api/http";
+import { verifyEmail } from "../api/auth";
 
 type Status = "loading" | "success" | "error";
 
@@ -19,21 +22,16 @@ export function VerifyEmailPage() {
 
     const run = async () => {
       try {
-        const response = await fetch(
-          `/rest/auth/verify-email?token=${encodeURIComponent(token)}`
-        );
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
+        await verifyEmail(token);
+        setStatus("success");
+        setMessage("Email confirmado com sucesso. Já podes iniciar sessão.");
+      } catch (err) {
+        if (err instanceof ApiError) {
           setStatus("error");
-          setMessage(data.message || "O token é inválido, já foi usado ou expirou.");
+          setMessage(err.message || "O token é inválido, já foi usado ou expirou.");
           return;
         }
 
-        setStatus("success");
-        setMessage("Email confirmado com sucesso. Já podes iniciar sessão.");
-      } catch {
         setStatus("error");
         setMessage("Ocorreu um erro ao verificar o email. Tenta novamente.");
       }
