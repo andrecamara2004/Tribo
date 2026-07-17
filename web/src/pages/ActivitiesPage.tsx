@@ -7,7 +7,7 @@ import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
 import { Spinner } from "../components/Spinner";
-import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
+import { statusPillClass, statusLabel, formatWhen, isEnded } from "../lib/activity";
 import { getCurrentPosition, type Coords } from "../lib/geo";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
@@ -311,6 +311,10 @@ export function ActivitiesPage() {
                 <span className={statusPillClass(a.status)}>
                   {statusLabel(a.status)}
                 </span>
+
+                {a.status !== "CANCELLED" && isEnded(a.endsAt) && (
+                  <span className="pill gray">Ended</span>
+                )}
 
                 {a.eventKind === "VOLUNTEER" &&
                   a.pointsParticipant ? (

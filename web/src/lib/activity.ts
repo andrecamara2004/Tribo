@@ -30,3 +30,8 @@ const DATE_FMT: Intl.DateTimeFormatOptions = {
 export function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, DATE_FMT);
 }
+
+/** True once the activity's end time has passed. */
+export function isEnded(endsAt: string): boolean {
+  return new Date(endsAt).getTime() < Date.now();
+}

@@ -303,6 +303,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
   }
 
   Widget _activityTile(Activity a) {
+    final ended = a.status != 'CANCELLED' && a.endsAt.isBefore(DateTime.now());
     final meta = <String>[
       a.location.isEmpty ? '—' : a.location,
       if (a.eventKind == 'VOLUNTEER' && a.distanceKm > 0)
@@ -326,6 +327,10 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
         title: Text(a.title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text('${a.startsAt.toLocal()}\n$meta'),
         isThreeLine: true,
+        trailing: ended
+            ? const Text('Ended',
+                style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600))
+            : null,
         onTap: () => _openDetail(a.id),
       ),
     );

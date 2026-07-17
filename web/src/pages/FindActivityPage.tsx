@@ -10,7 +10,7 @@ import { ActivitiesMap, type MapPoint } from "../components/MapView";
 import { useMapsLoader } from "../lib/maps";
 import { Icon } from "../components/Icon";
 import { Spinner } from "../components/Spinner";
-import { formatWhen } from "../lib/activity";
+import { formatWhen, isEnded } from "../lib/activity";
 import { getCurrentPosition, type Coords } from "../lib/geo";
 
 type KindFilter = "ALL" | EventKind;
@@ -273,6 +273,9 @@ export function FindActivityPage() {
                     <strong>{a.title}</strong>
                     <small>{formatWhen(a.startsAt)}{a.location ? ` · ${a.location}` : ""}</small>
                   </div>
+                  {a.status !== "CANCELLED" && isEnded(a.endsAt) && (
+                    <span className="pill gray">Ended</span>
+                  )}
                   {hasLoc ? <Icon name="pin" size={16} /> : <span className="pill gray">no pin</span>}
                 </button>
               );
