@@ -80,7 +80,7 @@ export function FeedPage() {
         </div>
       </div>
 
-      {loading && <Spinner label="Loading feed…" />}
+      {loading && <Spinner cover label="Loading feed…" />}
       {!loading && items.length === 0 && (
         <p className="state-msg">
           Nothing here yet. Log a run or join a volunteer event to start the feed.

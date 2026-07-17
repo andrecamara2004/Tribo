@@ -145,7 +145,7 @@ export function ActivityFormPage() {
   if (loading)
     return (
       <Shell>
-        <Spinner label="Loading…" />
+        <Spinner cover label="Loading…" />
       </Shell>
     );
 

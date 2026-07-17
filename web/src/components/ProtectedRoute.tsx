@@ -17,7 +17,7 @@ export function ProtectedRoute({
   roles?: string[];
 }) {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ padding: 24 }}><Spinner label="Loading…" /></div>;
+  if (loading) return <Spinner fullscreen label="Loading…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/activities" replace />;
   return <>{children}</>;

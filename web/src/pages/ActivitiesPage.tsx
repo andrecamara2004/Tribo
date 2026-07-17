@@ -276,7 +276,7 @@ export function ActivitiesPage() {
         )}
       </div>
 
-      {loading && <Spinner label="Loading activities…" />}
+      {loading && <Spinner cover label="Loading activities…" />}
 
       {error && (
         <p className="state-msg error">{error}</p>
@@ -294,7 +294,7 @@ export function ActivitiesPage() {
         {visible.map((a) => (
           <article
             key={a.id}
-            className="vol-card"
+            className={"vol-card" + (a.status !== "CANCELLED" && isEnded(a.endsAt) ? " ended" : "")}
             style={{ cursor: "pointer" }}
             onClick={() => navigate(`/activities/${a.id}`)}
           >

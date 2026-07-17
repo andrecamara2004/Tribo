@@ -256,7 +256,7 @@ export function FindActivityPage() {
       )}
 
       {loading ? (
-        <Spinner label="Loading…" />
+        <Spinner cover label="Loading…" />
       ) : (
         <div className="find-layout">
           <div className="find-list">
@@ -266,7 +266,9 @@ export function FindActivityPage() {
               return (
                 <button
                   key={a.id}
-                  className={"find-row " + (a.id === selectedId ? "active" : "")}
+                  className={"find-row "
+                    + (a.id === selectedId ? "active " : "")
+                    + (a.status !== "CANCELLED" && isEnded(a.endsAt) ? "ended" : "")}
                   onClick={() => (hasLoc ? setSelectedId(a.id) : navigate(`/activities/${a.id}`))}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>

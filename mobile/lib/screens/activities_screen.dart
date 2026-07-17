@@ -312,7 +312,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       if (a.reviewCount > 0)
         '★ ${a.averageRating.toStringAsFixed(1)} (${a.reviewCount})',
     ].join(' · ');
-    return Card(
+    return Opacity(
+      opacity: ended ? 0.55 : 1,
+      child: Card(
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: a.eventKind == 'VOLUNTEER'
@@ -332,6 +334,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600))
             : null,
         onTap: () => _openDetail(a.id),
+      ),
       ),
     );
   }

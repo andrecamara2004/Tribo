@@ -136,7 +136,7 @@ export function BackofficePage() {
         </div>
 
         {loading ? (
-          <Spinner label="Loading…" />
+          <Spinner cover label="Loading…" />
         ) : pending.length === 0 ? (
           <p className="state-msg" style={{ marginTop: 0 }}>Nothing waiting — the queue is clear. 🎉</p>
         ) : (
@@ -177,7 +177,7 @@ export function BackofficePage() {
         </div>
 
         {loading ? (
-          <Spinner label="Loading…" />
+          <Spinner cover label="Loading…" />
         ) : users.length === 0 ? (
           <p className="state-msg" style={{ marginTop: 0 }}>No users yet.</p>
         ) : (

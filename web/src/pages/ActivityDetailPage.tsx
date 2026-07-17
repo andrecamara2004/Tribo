@@ -136,7 +136,7 @@ export function ActivityDetailPage() {
   if (loading)
     return (
       <Shell>
-        <Spinner label="Loading…" />
+        <Spinner cover label="Loading…" />
       </Shell>
     );
   if (error && !activity)
