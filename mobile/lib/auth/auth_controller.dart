@@ -50,9 +50,10 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> register(RegisterInput input) async {
-    _user = await _authApi.register(input);
-    notifyListeners();
+  /// Register does NOT log in — the account must confirm its email first. The
+  /// result (with the message) is surfaced so the screen can prompt the user.
+  Future<RegisterResult> register(RegisterInput input) async {
+    return _authApi.register(input);
   }
 
   Future<void> logout() async {
@@ -60,4 +61,12 @@ class AuthController extends ChangeNotifier {
     _user = null;
     notifyListeners();
   }
+
+  // --- email verification / policy helpers (no session state change) --------
+
+  Future<PasswordPolicy> passwordPolicy() => _authApi.getPasswordPolicy();
+
+  Future<String> resendVerification(String email) => _authApi.resendVerification(email);
+
+  Future<String> verifyEmail(String token) => _authApi.verifyEmail(token);
 }

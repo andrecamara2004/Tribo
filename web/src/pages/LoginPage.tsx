@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/http";
+import { resendVerification } from "../api/auth";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -11,18 +12,36 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setResendMsg(null);
+    setNeedsVerify(false);
     setBusy(true);
     try {
       await login(email, password);
       navigate("/activities", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed.");
+      if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerify(true);
+        setError(err.message);
+      } else {
+        setError(err instanceof ApiError ? err.message : "Login failed.");
+      }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    setResendMsg(null);
+    try {
+      setResendMsg(await resendVerification(email));
+    } catch {
+      setResendMsg("Couldn't resend right now — try again in a minute.");
     }
   }
 
@@ -85,6 +104,15 @@ export function LoginPage() {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+
+          {needsVerify && (
+            <div className="hint">
+              <button type="button" className="btn btn-secondary btn-block" onClick={onResend}>
+                Resend confirmation email
+              </button>
+              {resendMsg && <p className="hint">{resendMsg}</p>}
+            </div>
+          )}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}

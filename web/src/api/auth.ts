@@ -17,6 +17,21 @@ export interface CurrentUser {
   verified?: boolean; // known after login/register; undefined after a whoami bootstrap
 }
 
+export interface RegisterResult {
+  email: string;
+  emailVerified: boolean;
+  message: string;
+}
+
+export interface PasswordPolicy {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireDigit: boolean;
+  requireSpecial: boolean;
+  rules: string[];
+}
+
 /** POST /auth/login — stores the session and returns the user identity. */
 export async function login(email: string, password: string): Promise<CurrentUser> {
   const tokens = await apiFetch<LoginTokens>("/auth/login", {
@@ -29,15 +44,56 @@ export async function login(email: string, password: string): Promise<CurrentUse
   return { userId: tokens.userId, role: tokens.role, verified: tokens.verified };
 }
 
-/** POST /auth/register, then auto-login with the same credentials. */
-export async function register(input: RegisterInput): Promise<CurrentUser> {
-  await apiFetch("/auth/register", {
+/**
+ * POST /auth/register. Does NOT log in: the account must confirm its email
+ * before login is allowed, so we return the verification status/message.
+ */
+export async function register(input: RegisterInput): Promise<RegisterResult> {
+  const res = await apiFetch<RegisterResult>("/auth/register", {
     method: "POST",
     skipAuth: true,
     body: JSON.stringify(input),
   });
-  // Backend register returns no tokens by design — chain a login.
-  return login(input.email, input.password);
+  return {
+    email: res?.email ?? input.email,
+    emailVerified: res?.emailVerified ?? false,
+    message: res?.message ?? "Account created. Check your email to confirm it before logging in.",
+  };
+}
+
+/** POST /auth/verify-email — confirm the email from the link's token. */
+export async function verifyEmail(token: string): Promise<string> {
+  const res = await apiFetch<{ message: string }>("/auth/verify-email", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ token }),
+  });
+  return res?.message ?? "Email confirmed. You can now log in.";
+}
+
+/** POST /auth/resend-verification — re-send the confirmation link. */
+export async function resendVerification(email: string): Promise<string> {
+  const res = await apiFetch<{ message: string }>("/auth/resend-verification", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  });
+  return res?.message ?? "If that account exists and is unverified, a new link has been sent.";
+}
+
+/** GET /auth/password-policy — the current (DB-backed) password rules. */
+export async function getPasswordPolicy(): Promise<PasswordPolicy> {
+  const p = await apiFetch<PasswordPolicy>("/auth/password-policy", { skipAuth: true });
+  return (
+    p ?? {
+      minLength: 8,
+      requireUppercase: false,
+      requireLowercase: true,
+      requireDigit: true,
+      requireSpecial: false,
+      rules: ["At least 8 characters"],
+    }
+  );
 }
 
 /** POST /auth/logout — revokes the refresh token, then clears local session. */

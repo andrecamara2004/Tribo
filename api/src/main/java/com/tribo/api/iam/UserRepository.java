@@ -59,6 +59,7 @@ public class UserRepository {
                 .set("createdAt", user.createdAt().toString())
                 .set("suspended", user.suspended())
                 .set("verified", user.verified())
+                .set("emailVerified", user.emailVerified())
                 .set("weeklyGoalKm", user.weeklyGoalKm());
 
         if (user.pictureUrl() != null) {
@@ -132,7 +133,10 @@ public class UserRepository {
                 // legacy entities created before D-3).
                 e.contains("clanId") ? e.getString("clanId") : null,
                 e.contains("weeklyGoalKm") ? e.getDouble("weeklyGoalKm") : 0.0,
-                e.contains("pictureUrl") ? e.getString("pictureUrl") : null);
+                e.contains("pictureUrl") ? e.getString("pictureUrl") : null,
+                // Legacy entities (created before email verification) default to
+                // emailVerified=true so existing accounts aren't locked out.
+                !e.contains("emailVerified") || e.getBoolean("emailVerified"));
     }
 
     /**
@@ -149,7 +153,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl());
+                u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);
     }
@@ -169,7 +173,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl());
+                u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);
     }
@@ -183,7 +187,56 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), u.clanId(), Math.max(0, km), u.pictureUrl());
+                u.suspended(), u.verified(), u.clanId(), Math.max(0, km), u.pictureUrl(),
+                u.emailVerified());
+        save(updated);
+        return Optional.of(updated);
+    }
+
+    /** Marks a user's email confirmed. Idempotent. Returns the updated user. */
+    public Optional<User> setEmailVerified(String id) {
+        Optional<User> found = findById(id);
+        if (found.isEmpty())
+            return Optional.empty();
+        User u = found.get();
+        if (u.emailVerified())
+            return found;
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), true);
+        save(updated);
+        return Optional.of(updated);
+    }
+
+    /** Replaces the user's password hash (change-password flow). */
+    public Optional<User> updatePasswordHash(String id, String newHash) {
+        Optional<User> found = findById(id);
+        if (found.isEmpty())
+            return Optional.empty();
+        User u = found.get();
+        User updated = new User(
+                u.id(), u.email(), newHash, u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
+                u.emailVerified());
+        save(updated);
+        return Optional.of(updated);
+    }
+
+    /** Sets the user's profile visibility (PUBLIC / PRIVATE). */
+    public Optional<User> setVisibility(String id, User.ProfileVisibility visibility) {
+        Optional<User> found = findById(id);
+        if (found.isEmpty())
+            return Optional.empty();
+        User u = found.get();
+        if (u.profileVisibility() == visibility)
+            return found;
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.age(), u.role(), visibility, u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
+                u.emailVerified());
         save(updated);
         return Optional.of(updated);
     }
@@ -232,7 +285,7 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl());
+                suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);
     }

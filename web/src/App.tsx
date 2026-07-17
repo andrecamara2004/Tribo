@@ -15,6 +15,8 @@ import { FindActivityPage } from "./pages/FindActivityPage";
 import { ActivitiesPage } from "./pages/ActivitiesPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { ActivityFormPage } from "./pages/ActivityFormPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
 const BACKOFFICE_ROLES = ["BACKOFFICE", "SYSADMIN"];
@@ -27,7 +29,9 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/track" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />

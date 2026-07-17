@@ -4,10 +4,13 @@ import com.tribo.api.error.ConflictException;
 import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.UnauthorizedException;
 import com.tribo.api.error.ValidationException;
+import com.tribo.api.iam.EmailSender;
 import com.tribo.api.iam.JwtIssuer;
 import com.tribo.api.iam.LoginRateLimiter;
 import com.tribo.api.iam.LoginRequest;
 import com.tribo.api.iam.PasswordHasher;
+import com.tribo.api.iam.PasswordPolicy;
+import com.tribo.api.iam.PasswordPolicyRepository;
 import com.tribo.api.iam.PublicEndpoint;
 import com.tribo.api.iam.RefreshRequest;
 import com.tribo.api.iam.RegisterRequest;
@@ -15,11 +18,15 @@ import com.tribo.api.iam.RevokedTokenRepository;
 import com.tribo.api.iam.Role;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
+import com.tribo.api.iam.VerificationTokenRepository;
+
+import java.time.temporal.ChronoUnit;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -51,7 +58,12 @@ public class AuthResource {
 
     private static final UserRepository USERS = new UserRepository();
     private static final RevokedTokenRepository REVOKED = new RevokedTokenRepository();
+    private static final PasswordPolicyRepository PASSWORD_POLICY = new PasswordPolicyRepository();
+    private static final VerificationTokenRepository VERIFICATION = new VerificationTokenRepository();
     private static final JwtIssuer JWT = new JwtIssuer();
+
+    // Email-verification tokens are valid for 24 hours.
+    private static final long VERIFICATION_TTL_HOURS = 24;
 
     @Context
     private HttpServletRequest httpRequest;
@@ -62,7 +74,6 @@ public class AuthResource {
     private static final String DUMMY_HASH = PasswordHasher.hash("dummy-password-placeholder");
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
-    private static final int MIN_PASSWORD_LENGTH = 8;
     private static final int MIN_AGE = 13;
     private static final int MAX_AGE = 120;
 
@@ -87,9 +98,10 @@ public class AuthResource {
         if (email == null || !EMAIL.matcher(email).matches()) {
             throw new ValidationException("A valid email is required.");
         }
-        if (req.password == null || req.password.length() < MIN_PASSWORD_LENGTH) {
-            throw new ValidationException(
-                    "Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
+        // Password rules come from Datastore (SYSADMIN-configurable), not hardcoded.
+        String pwdError = PASSWORD_POLICY.get().validate(req.password);
+        if (pwdError != null) {
+            throw new ValidationException(pwdError);
         }
         if (fullName == null || fullName.isEmpty()) {
             throw new ValidationException("Full name is required.");
@@ -108,6 +120,7 @@ public class AuthResource {
 
         Role role = resolveRequestedRole(req.role);
         boolean verified;
+        boolean emailVerified;
         // bootstrap sysadmin
         String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
         if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
@@ -115,10 +128,12 @@ public class AuthResource {
             // SYSADMIN so there is a privileged account to verify the rest.
             role = Role.SYSADMIN;
             verified = true;
+            emailVerified = true; // seed account skips the email gate
         } else {
-            // END_USER is usable immediately; privileged roles await backoffice
-            // verification before they can act (e.g. create activities).
+            // END_USER is usable immediately (once email-verified); privileged
+            // roles also await backoffice verification before they can act.
             verified = (role == Role.END_USER);
+            emailVerified = false; // must confirm their email before logging in
         }
 
         String userId = UUID.randomUUID().toString();
@@ -136,17 +151,34 @@ public class AuthResource {
                 verified,
                 null, // new users start without a clan
                 0.0, // no weekly goal yet
-                null // no profile picture yet
-        );
+                null, // no profile picture yet
+                emailVerified);
         USERS.save(user);
+
+        // Send the confirmation email (best-effort) unless already verified.
+        if (!emailVerified) {
+            issueVerificationEmail(userId, email);
+        }
 
         return Response.created(URI.create("/rest/users/" + userId))
                 .entity(Map.of(
                         "userId", userId,
                         "email", email,
                         "role", user.role().name(),
-                        "verified", user.verified()))
+                        "verified", user.verified(),
+                        "emailVerified", user.emailVerified(),
+                        "message", emailVerified
+                                ? "Account created."
+                                : "Account created. Check your email to confirm it before logging in."))
                 .build();
+    }
+
+    /** Issues a fresh verification token and emails the confirmation link. */
+    private void issueVerificationEmail(String userId, String email) {
+        VERIFICATION.deleteByUser(userId); // invalidate any previous token
+        String token = VERIFICATION.create(
+                userId, Instant.now().plus(VERIFICATION_TTL_HOURS, ChronoUnit.HOURS));
+        EmailSender.sendVerificationEmail(email, token);
     }
 
     /**
@@ -199,6 +231,10 @@ public class AuthResource {
         User user = found.get();
         if (user.suspended()) {
             throw new ForbiddenException("This account has been suspended.");
+        }
+        if (!user.emailVerified()) {
+            throw new ForbiddenException("EMAIL_NOT_VERIFIED",
+                    "Please confirm your email before logging in. Check your inbox for the link.");
         }
 
         String accessToken = JWT.issueAccessToken(user.id(), user.role());
@@ -289,6 +325,71 @@ public class AuthResource {
             REVOKED.revoke(jti, decoded.getExpiresAt().toInstant());
         }
         return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/verify-email")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response verifyEmail(VerifyEmailRequest req) {
+        if (req == null || req.token == null || req.token.isBlank()) {
+            throw new ValidationException("Verification token is required.");
+        }
+        String userId = VERIFICATION.resolveUserId(req.token)
+                .orElseThrow(() -> new ValidationException(
+                        "This verification link is invalid or has expired."));
+        USERS.setEmailVerified(userId);
+        VERIFICATION.delete(req.token);
+        return Response.ok(Map.of(
+                "emailVerified", true,
+                "message", "Email confirmed. You can now log in.")).build();
+    }
+
+    @POST
+    @Path("/resend-verification")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response resendVerification(ResendRequest req) {
+        String ip = clientIp(httpRequest);
+        if (LoginRateLimiter.isRateLimited(ip)) {
+            throw new TooManyRequestsException("Too many requests. Please wait a minute and try again.");
+        }
+        if (req != null && req.email != null && !req.email.isBlank()) {
+            String email = req.email.trim().toLowerCase();
+            USERS.findByEmail(email).ifPresent(u -> {
+                if (!u.emailVerified()) {
+                    issueVerificationEmail(u.id(), u.email());
+                }
+            });
+        }
+        // Generic response — never reveal whether an account exists.
+        return Response.ok(Map.of(
+                "message", "If that account exists and is unverified, a new confirmation link has been sent."))
+                .build();
+    }
+
+    @GET
+    @Path("/password-policy")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response passwordPolicy() {
+        PasswordPolicy p = PASSWORD_POLICY.get();
+        return Response.ok(Map.of(
+                "minLength", p.minLength(),
+                "requireUppercase", p.requireUppercase(),
+                "requireLowercase", p.requireLowercase(),
+                "requireDigit", p.requireDigit(),
+                "requireSpecial", p.requireSpecial(),
+                "rules", p.describe())).build();
+    }
+
+    /** Body for POST /auth/verify-email. */
+    public static class VerifyEmailRequest {
+        public String token;
+    }
+
+    /** Body for POST /auth/resend-verification. */
+    public static class ResendRequest {
+        public String email;
     }
 
     /**

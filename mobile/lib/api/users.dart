@@ -55,6 +55,7 @@ class Me {
   final int age;
   final String role;
   final bool verified;
+  final String profileVisibility; // PUBLIC | PRIVATE
   final String handle; // derived, e.g. "@ana"
   final String avatarColor; // derived hex
   final String? pictureUrl;
@@ -72,6 +73,7 @@ class Me {
     required this.age,
     required this.role,
     required this.verified,
+    this.profileVisibility = 'PUBLIC',
     required this.handle,
     required this.avatarColor,
     this.pictureUrl,
@@ -90,6 +92,7 @@ class Me {
         age: (j['age'] as num?)?.toInt() ?? 0,
         role: (j['role'] ?? '') as String,
         verified: (j['verified'] ?? false) as bool,
+        profileVisibility: (j['profileVisibility'] ?? 'PUBLIC') as String,
         handle: (j['handle'] ?? '') as String,
         avatarColor: (j['avatarColor'] ?? '#1B8A5A') as String,
         pictureUrl: j['pictureUrl'] as String?,
@@ -126,5 +129,22 @@ class UsersApi {
       filename: filename,
       mimeType: mimeType,
     );
+  }
+
+  /// POST /users/me/password — change password (requires the current one).
+  Future<String> changePassword(String currentPassword, String newPassword) async {
+    final data = await _client.post('/users/me/password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    }) as Map<String, dynamic>?;
+    return (data?['message'] as String?) ?? 'Password updated.';
+  }
+
+  /// PUT /users/me/visibility — set profile visibility (PUBLIC / PRIVATE).
+  Future<Me> setVisibility(String visibility) async {
+    final data = await _client.request('PUT', '/users/me/visibility', body: {'visibility': visibility})
+        as Map<String, dynamic>?;
+    if (data == null) throw Exception('Set visibility returned no body.');
+    return Me.fromJson(data);
   }
 }

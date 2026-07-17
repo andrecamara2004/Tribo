@@ -1,17 +1,24 @@
 // src/pages/RegisterPage.tsx
-import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/http";
+import { getPasswordPolicy, resendVerification, type PasswordPolicy } from "../api/auth";
 
 export function RegisterPage() {
   const { register } = useAuth();
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "", password: "", fullName: "", phoneNumber: "", age: "", role: "END_USER",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [policy, setPolicy] = useState<PasswordPolicy | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null); // set once the email is on its way
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPasswordPolicy().then(setPolicy).catch(() => setPolicy(null));
+  }, []);
 
   function update(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -22,14 +29,16 @@ export function RegisterPage() {
     setError(null);
 
     // Client-side checks mirror the backend; the server is still the source of truth.
-    if (form.password.length < 8) return setError("Password must be at least 8 characters.");
+    const minLen = policy?.minLength ?? 8;
+    if (form.password.length < minLen)
+      return setError(`Password must be at least ${minLen} characters.`);
     const ageNum = Number(form.age);
     if (!Number.isInteger(ageNum) || ageNum < 13 || ageNum > 120)
       return setError("Age must be a whole number between 13 and 120.");
 
     setBusy(true);
     try {
-      await register({
+      const result = await register({
         email: form.email,
         password: form.password,
         fullName: form.fullName,
@@ -37,11 +46,22 @@ export function RegisterPage() {
         age: ageNum,
         role: form.role,
       });
-      navigate("/activities", { replace: true });
+      // Login is gated on email confirmation — show the "check your email" panel.
+      setSentTo(result.email);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    if (!sentTo) return;
+    setResendMsg(null);
+    try {
+      setResendMsg(await resendVerification(sentTo));
+    } catch {
+      setResendMsg("Couldn't resend right now — try again in a minute.");
     }
   }
 
@@ -75,6 +95,23 @@ export function RegisterPage() {
       </aside>
 
       <section className="login-form">
+        {sentTo ? (
+          <div className="verify-panel">
+            <h2>Check your email 📬</h2>
+            <p className="subtitle">
+              We sent a confirmation link to <strong>{sentTo}</strong>. Click it to
+              activate your account, then sign in.
+            </p>
+            <button type="button" className="btn btn-secondary btn-block" onClick={onResend}>
+              Resend confirmation email
+            </button>
+            {resendMsg && <p className="hint">{resendMsg}</p>}
+            <p className="login-footer">
+              Already confirmed? <Link to="/login">Sign in →</Link>
+            </p>
+          </div>
+        ) : (
+          <>
         <h2>Create your account</h2>
         <p className="subtitle">It takes less than a minute</p>
 
@@ -88,7 +125,11 @@ export function RegisterPage() {
             <label htmlFor="password">Password</label>
             <input id="password" type="password" value={form.password}
               onChange={(e) => update("password", e.target.value)} required
-              autoComplete="new-password" placeholder="At least 8 characters" />
+              autoComplete="new-password"
+              placeholder={`At least ${policy?.minLength ?? 8} characters`} />
+            {policy && policy.rules.length > 0 && (
+              <div className="hint">Must contain: {policy.rules.join(" · ")}</div>
+            )}
           </div>
           <div className="field">
             <label htmlFor="fullName">Full name</label>
@@ -131,6 +172,8 @@ export function RegisterPage() {
         <p className="login-footer">
           Have an account? <Link to="/login">Sign in →</Link>
         </p>
+          </>
+        )}
       </section>
     </div>
   );

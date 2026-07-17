@@ -32,7 +32,8 @@ public record User(
         boolean verified, // privileged self-registered roles start false; backoffice verifies (D-1)
         String clanId, // the clan the user belongs to, or null if none (D-3)
         double weeklyGoalKm, // per-user weekly distance goal; 0 = none (Phase 6)
-        String pictureUrl // public URL of the user's profile picture, or null
+        String pictureUrl, // public URL of the user's profile picture, or null
+        boolean emailVerified // true once the user confirms their email (login gate)
 ) {
     public enum ProfileVisibility {
         PUBLIC,

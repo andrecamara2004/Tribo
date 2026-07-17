@@ -16,6 +16,7 @@ import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.AvatarColor;
 import com.tribo.api.iam.JwtAuthFilter;
 import com.tribo.api.iam.OwnershipGuard;
+import com.tribo.api.iam.ProfilePrivacy;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.run.Run;
@@ -107,7 +108,7 @@ public class FeedResource {
             if (members != null && !members.contains(r.userId()))
                 continue;
             Map<String, Object> m = base(r.id(), "run", r.startedAt(), r.title(), r.location(),
-                    author(r.userId(), userCache, clanCache), caller.userId());
+                    author(r.userId(), caller, userCache, clanCache), caller.userId());
             double km = Math.round(r.distanceMeters() / 100.0) / 10.0;
             m.put("distanceKm", km);
             m.put("durationSeconds", r.durationSeconds());
@@ -127,7 +128,7 @@ public class FeedResource {
                 continue;
             String id = p.activityId() + ":" + p.userId();
             Map<String, Object> m = base(id, "volunteer", p.joinedAt(), a.title(), a.location(),
-                    author(p.userId(), userCache, clanCache), caller.userId());
+                    author(p.userId(), caller, userCache, clanCache), caller.userId());
             m.put("role", p.role().name());
             m.put("pointsEarned", p.role() == ParticipationRole.STAFF ? a.pointsStaff() : a.pointsParticipant());
             m.put("verifiedBy", a.verifiedBy().name());
@@ -171,12 +172,12 @@ public class FeedResource {
     @Path("/{itemId}/comments")
     @Produces(MediaType.APPLICATION_JSON)
     public Response comments(@Context ContainerRequestContext ctx, @PathParam("itemId") String itemId) {
-        authUser(ctx);
+        AuthenticatedUser caller = authUser(ctx);
         Map<String, User> userCache = new HashMap<>();
         Map<String, Clan> clanCache = new HashMap<>();
         List<Map<String, Object>> items = new ArrayList<>();
         for (Comment c : COMMENTS.listByItem(itemId))
-            items.add(commentView(c, userCache, clanCache));
+            items.add(commentView(c, caller, userCache, clanCache));
         return Response.ok(Map.of("items", items)).build();
     }
 
@@ -193,7 +194,7 @@ public class FeedResource {
         Comment c = new Comment(UUID.randomUUID().toString(), itemId, caller.userId(), text, Instant.now());
         COMMENTS.save(c);
         return Response.created(URI.create("/rest/feed/" + itemId + "/comments/" + c.id()))
-                .entity(commentView(c, new HashMap<>(), new HashMap<>()))
+                .entity(commentView(c, caller, new HashMap<>(), new HashMap<>()))
                 .build();
     }
 
@@ -212,12 +213,13 @@ public class FeedResource {
         return Response.noContent().build();
     }
 
-    private Map<String, Object> commentView(Comment c, Map<String, User> userCache, Map<String, Clan> clanCache) {
+    private Map<String, Object> commentView(Comment c, AuthenticatedUser caller,
+            Map<String, User> userCache, Map<String, Clan> clanCache) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", c.id());
         m.put("text", c.text());
         m.put("createdAt", c.createdAt().toString());
-        m.put("author", author(c.userId(), userCache, clanCache));
+        m.put("author", author(c.userId(), caller, userCache, clanCache));
         return m;
     }
 
@@ -242,11 +244,14 @@ public class FeedResource {
         return m;
     }
 
-    private Map<String, Object> author(String userId, Map<String, User> userCache, Map<String, Clan> clanCache) {
+    private Map<String, Object> author(String userId, AuthenticatedUser caller,
+            Map<String, User> userCache, Map<String, Clan> clanCache) {
         User u = userCache.computeIfAbsent(userId, id -> USERS.findById(id).orElse(null));
+        // Mask PRIVATE users from everyone but themselves and privileged roles.
+        boolean reveal = u == null || ProfilePrivacy.canSeeIdentity(caller, u);
         Map<String, Object> a = new LinkedHashMap<>();
         a.put("userId", userId);
-        a.put("name", u != null ? u.fullName() : "Unknown");
+        a.put("name", u == null ? "Unknown" : (reveal ? u.fullName() : ProfilePrivacy.MASKED_NAME));
         String clanName = null;
         String color = AvatarColor.forId(userId);
         if (u != null && u.clanId() != null) {
@@ -258,9 +263,10 @@ public class FeedResource {
         }
         a.put("clanName", clanName);
         a.put("color", color);
-        if (u != null && u.pictureUrl() != null) {
+        if (reveal && u != null && u.pictureUrl() != null) {
             a.put("pictureUrl", u.pictureUrl());
         }
+        a.put("private", u != null && !reveal);
         return a;
     }
 

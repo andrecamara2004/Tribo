@@ -18,6 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
   String? _error;
   bool _busy = false;
+  bool _needsVerify = false; // login blocked because email isn't confirmed
+  String? _resendMsg;
 
   @override
   void dispose() {
@@ -29,6 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     setState(() {
       _error = null;
+      _resendMsg = null;
+      _needsVerify = false;
       _busy = true;
     });
     try {
@@ -39,11 +43,24 @@ class _LoginScreenState extends State<LoginScreen> {
       // change until a cold restart resets the navigator stack.
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiError catch (e) {
-      setState(() => _error = e.message);
+      setState(() {
+        _error = e.message;
+        _needsVerify = e.code == 'EMAIL_NOT_VERIFIED';
+      });
     } catch (_) {
       setState(() => _error = 'Login failed.');
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resend() async {
+    setState(() => _resendMsg = null);
+    try {
+      final msg = await AuthScope.of(context).resendVerification(_email.text.trim());
+      if (mounted) setState(() => _resendMsg = msg);
+    } catch (_) {
+      if (mounted) setState(() => _resendMsg = "Couldn't resend right now — try again in a minute.");
     }
   }
 
@@ -110,6 +127,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(_error!, style: const TextStyle(color: Colors.red)),
+                  ],
+                  if (_needsVerify) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: _busy ? null : _resend,
+                      child: const Text('Resend confirmation email'),
+                    ),
+                    if (_resendMsg != null) ...[
+                      const SizedBox(height: 6),
+                      Text(_resendMsg!, style: const TextStyle(fontSize: 13)),
+                    ],
                   ],
                   const SizedBox(height: 16),
                   FilledButton(

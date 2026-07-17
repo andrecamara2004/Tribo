@@ -73,3 +73,22 @@ export async function setWeeklyGoal(weeklyGoalKm: number): Promise<Me> {
   if (!me) throw new Error("Set goal returned no body.");
   return me;
 }
+
+/** POST /users/me/password — change password (requires the current one). */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
+  const res = await apiFetch<{ message: string }>("/users/me/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return res?.message ?? "Password updated.";
+}
+
+/** PUT /users/me/visibility — set profile visibility (PUBLIC / PRIVATE). */
+export async function setVisibility(visibility: "PUBLIC" | "PRIVATE"): Promise<Me> {
+  const me = await apiFetch<Me>("/users/me/visibility", {
+    method: "PUT",
+    body: JSON.stringify({ visibility }),
+  });
+  if (!me) throw new Error("Set visibility returned no body.");
+  return me;
+}

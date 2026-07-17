@@ -35,6 +35,34 @@ class RegisterInput {
       };
 }
 
+/// Result of a registration — the account must confirm its email before login.
+class RegisterResult {
+  final String email;
+  final bool emailVerified;
+  final String message;
+  const RegisterResult({
+    required this.email,
+    required this.emailVerified,
+    required this.message,
+  });
+}
+
+/// The (DB-backed) password rules, for showing hints in the UI.
+class PasswordPolicy {
+  final int minLength;
+  final List<String> rules;
+  const PasswordPolicy({required this.minLength, required this.rules});
+
+  factory PasswordPolicy.fromJson(Map<String, dynamic> j) => PasswordPolicy(
+        minLength: (j['minLength'] as num?)?.toInt() ?? 8,
+        rules: ((j['rules'] as List<dynamic>?) ?? const [])
+            .map((e) => e as String)
+            .toList(),
+      );
+
+  static const fallback = PasswordPolicy(minLength: 8, rules: ['At least 8 characters']);
+}
+
 /// The authenticated identity the UI cares about.
 class CurrentUser {
   final String userId;
@@ -77,11 +105,42 @@ class AuthApi {
     );
   }
 
-  /// POST /auth/register, then auto-login with the same credentials.
-  /// The backend's register returns no tokens by design — chain a login.
-  Future<CurrentUser> register(RegisterInput input) async {
-    await _client.post('/auth/register', skipAuth: true, body: input.toJson());
-    return login(input.email, input.password);
+  /// POST /auth/register. Does NOT log in — the account must confirm its email
+  /// first (login is gated on it), so we return the verification status.
+  Future<RegisterResult> register(RegisterInput input) async {
+    final data = await _client.post('/auth/register', skipAuth: true, body: input.toJson())
+        as Map<String, dynamic>?;
+    return RegisterResult(
+      email: (data?['email'] as String?) ?? input.email,
+      emailVerified: (data?['emailVerified'] as bool?) ?? false,
+      message: (data?['message'] as String?) ??
+          'Account created. Check your email to confirm it before logging in.',
+    );
+  }
+
+  /// POST /auth/verify-email — confirm the email from the link's token.
+  Future<String> verifyEmail(String token) async {
+    final data = await _client.post('/auth/verify-email', skipAuth: true, body: {'token': token})
+        as Map<String, dynamic>?;
+    return (data?['message'] as String?) ?? 'Email confirmed. You can now log in.';
+  }
+
+  /// POST /auth/resend-verification — re-send the confirmation link.
+  Future<String> resendVerification(String email) async {
+    final data = await _client.post('/auth/resend-verification', skipAuth: true, body: {'email': email})
+        as Map<String, dynamic>?;
+    return (data?['message'] as String?) ??
+        'If that account exists and is unverified, a new link has been sent.';
+  }
+
+  /// GET /auth/password-policy — the current DB-backed password rules.
+  Future<PasswordPolicy> getPasswordPolicy() async {
+    try {
+      final data = await _client.get('/auth/password-policy') as Map<String, dynamic>?;
+      return data == null ? PasswordPolicy.fallback : PasswordPolicy.fromJson(data);
+    } catch (_) {
+      return PasswordPolicy.fallback;
+    }
   }
 
   /// POST /auth/logout — revokes the refresh token, then clears local session.

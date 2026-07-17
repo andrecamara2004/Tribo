@@ -12,6 +12,7 @@ import com.tribo.api.error.UnauthorizedException;
 import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.JwtAuthFilter;
+import com.tribo.api.iam.ProfilePrivacy;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.run.Run;
 import com.tribo.api.run.RunRepository;
@@ -471,7 +472,8 @@ public class ClanResource {
     @GET
     @Path("/{id}/members")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getMembers(@PathParam("id") String id) {
+    public Response getMembers(@Context ContainerRequestContext ctx, @PathParam("id") String id) {
+        AuthenticatedUser caller = authUser(ctx);
         CLANS.findById(id).orElseThrow(() -> new NotFoundException("No clan with id " + id + "."));
 
         List<Map<String, Object>> members = USERS.findIdsByClan(id).stream()
@@ -479,11 +481,15 @@ public class ClanResource {
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .map(u -> {
+                    // PRIVATE members are masked to everyone except themselves and
+                    // privileged roles — so browsing a roster can't reveal them.
+                    boolean reveal = ProfilePrivacy.canSeeIdentity(caller, u);
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", u.id());
-                    m.put("fullName", u.fullName());
+                    m.put("fullName", reveal ? u.fullName() : ProfilePrivacy.MASKED_NAME);
                     m.put("role", u.role().name());
-                    m.put("pictureUrl", u.pictureUrl());
+                    m.put("pictureUrl", reveal ? u.pictureUrl() : null);
+                    m.put("private", !reveal);
                     return m;
                 })
                 .toList();

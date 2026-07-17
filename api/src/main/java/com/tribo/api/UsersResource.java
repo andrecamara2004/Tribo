@@ -3,6 +3,7 @@ package com.tribo.api;
 import com.tribo.api.activity.VolunteerStats;
 import com.tribo.api.clan.Clan;
 import com.tribo.api.clan.ClanRepository;
+import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.UnauthorizedException;
 import com.tribo.api.error.ValidationException;
@@ -10,6 +11,8 @@ import com.tribo.api.iam.AllowedRoles;
 import com.tribo.api.iam.AuthenticatedUser;
 import com.tribo.api.iam.AvatarColor;
 import com.tribo.api.iam.JwtAuthFilter;
+import com.tribo.api.iam.PasswordHasher;
+import com.tribo.api.iam.PasswordPolicyRepository;
 import com.tribo.api.iam.Role;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
@@ -55,6 +58,7 @@ public class UsersResource {
     private static final UserRepository USERS = new UserRepository();
     private static final ClanRepository CLANS = new ClanRepository();
     private static final RunRepository RUNS = new RunRepository();
+    private static final PasswordPolicyRepository PASSWORD_POLICY = new PasswordPolicyRepository();
 
     // Get all users
     @GET
@@ -141,7 +145,8 @@ public class UsersResource {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.age(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), pictureUrl);
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), pictureUrl,
+                u.emailVerified());
         USERS.save(updated);
 
         return me(ctx);
@@ -160,6 +165,56 @@ public class UsersResource {
             throw new ValidationException("weeklyGoalKm cannot be negative.");
         USERS.setWeeklyGoal(caller.userId(), km);
         return me(ctx);
+    }
+
+    // Change password (requires the current password)
+
+    @POST
+    @Path("/me/password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response changePassword(@Context ContainerRequestContext ctx, ChangePasswordRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        User u = USERS.findById(caller.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
+
+        if (req == null || req.currentPassword == null || req.newPassword == null) {
+            throw new ValidationException("currentPassword and newPassword are required.");
+        }
+        // The user must prove they know the current password.
+        if (!PasswordHasher.verify(req.currentPassword, u.passwordHash())) {
+            throw new ForbiddenException("Current password is incorrect.");
+        }
+        String err = PASSWORD_POLICY.get().validate(req.newPassword);
+        if (err != null) {
+            throw new ValidationException(err);
+        }
+        if (PasswordHasher.verify(req.newPassword, u.passwordHash())) {
+            throw new ValidationException("New password must be different from the current one.");
+        }
+        USERS.updatePasswordHash(u.id(), PasswordHasher.hash(req.newPassword));
+        return Response.ok(Map.of("message", "Password updated.")).build();
+    }
+
+    // Set profile visibility (PUBLIC / PRIVATE)
+
+    @PUT
+    @Path("/me/visibility")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response setVisibility(@Context ContainerRequestContext ctx, VisibilityRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        if (req == null || req.visibility == null) {
+            throw new ValidationException("visibility is required.");
+        }
+        User.ProfileVisibility vis;
+        try {
+            vis = User.ProfileVisibility.valueOf(req.visibility.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("visibility must be PUBLIC or PRIVATE.");
+        }
+        USERS.setVisibility(caller.userId(), vis);
+        return me(ctx); // return the refreshed profile
     }
 
     // Get running stats
@@ -260,6 +315,17 @@ public class UsersResource {
     /** Body for PUT /users/me/goal. */
     public static class GoalRequest {
         public Double weeklyGoalKm;
+    }
+
+    /** Body for POST /users/me/password. */
+    public static class ChangePasswordRequest {
+        public String currentPassword;
+        public String newPassword;
+    }
+
+    /** Body for PUT /users/me/visibility. */
+    public static class VisibilityRequest {
+        public String visibility;
     }
 
     /** Profile response - hides passwordHash and other secrets. */

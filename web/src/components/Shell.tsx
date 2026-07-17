@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { id: "activities", label: "Activities", icon: "leaf", path: "/activities" },
   { id: "discover", label: "Find activities", icon: "pin", path: "/discover" },
   { id: "profile", label: "Profile", icon: "user", path: "/profile" },
+  { id: "settings", label: "Settings", icon: "settings", path: "/settings" },
 ];
 
 /** ACTIVITY_MANAGER → "Activity Manager" */

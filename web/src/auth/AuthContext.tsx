@@ -1,7 +1,7 @@
 // src/auth/AuthContext.tsx
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import * as authApi from "../api/auth";
-import type { CurrentUser, RegisterInput } from "../api/auth";
+import type { CurrentUser, RegisterInput, RegisterResult } from "../api/auth";
 import { getMe, type Me } from "../api/users";
 import { refreshAccessToken } from "../api/http";
 import { hasPersistedSession } from "./tokenStore";
@@ -11,7 +11,7 @@ interface AuthContextValue {
   profile: Me | null; // full DB-backed profile (name, clan, …); null until loaded
   loading: boolean; // true during the initial session bootstrap
   login: (email: string, password: string) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
+  register: (input: RegisterInput) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>; // re-fetch /users/me (e.g. after a clan change)
 }
@@ -68,9 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile();
   }
 
+  // Register does NOT log in — the account must confirm its email first. We
+  // surface the result so the page can show a "check your email" message.
   async function register(input: RegisterInput) {
-    setUser(await authApi.register(input));
-    await loadProfile();
+    return authApi.register(input);
   }
 
   async function logout() {

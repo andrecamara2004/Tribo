@@ -9,6 +9,7 @@ import '../api/http.dart';
 import '../api/services_scope.dart';
 import '../api/users.dart';
 import '../auth/auth_scope.dart';
+import 'settings_screen.dart';
 
 /// Sprint 3 profile, ported to mobile from the web ProfilePage. Reads the
 /// DB-backed GET /users/me: identity header, role/verification, and the
@@ -100,6 +101,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
