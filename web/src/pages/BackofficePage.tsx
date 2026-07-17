@@ -185,6 +185,7 @@ export function BackofficePage() {
             {users.map((u) => {
               const needsVerify = !u.verified && (u.role === "ACTIVITY_MANAGER" || u.role === "PARTNER");
               const isSelf = u.userId === user?.userId;
+              const isSysadmin = u.role === "SYSADMIN"; // protected — can't be suspended
               return (
                 <li key={u.userId} style={{ alignItems: "center", gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -209,12 +210,12 @@ export function BackofficePage() {
                         onClick={() => userAction(u, () => unsuspendUser(u.userId), `Unsuspended ${u.email}.`)}>
                         Unsuspend
                       </button>
-                    ) : (
+                    ) : !isSysadmin ? (
                       <button className="btn btn-danger" disabled={busyId === u.userId}
                         onClick={() => userAction(u, () => suspendUser(u.userId), `Suspended ${u.email}.`)}>
                         Suspend
                       </button>
-                    ))}
+                    ) : null)}
                   </div>
                 </li>
               );

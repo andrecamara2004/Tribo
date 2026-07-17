@@ -249,6 +249,13 @@ public class UsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     @AllowedRoles({ Role.BACKOFFICE, Role.SYSADMIN })
     public Response suspend(@PathParam("id") String id) {
+        User target = USERS.findById(id)
+                .orElseThrow(() -> new NotFoundException("No user with id " + id + "."));
+        // SYSADMIN accounts are protected — no role (not even another SYSADMIN)
+        // may suspend them, so the platform can't be locked out of itself.
+        if (target.role() == Role.SYSADMIN) {
+            throw new ForbiddenException("SYSADMIN accounts cannot be suspended.");
+        }
         User updated = USERS.setSuspended(id, true)
                 .orElseThrow(() -> new NotFoundException("No user with id " + id + "."));
         return Response.ok(Map.of(
