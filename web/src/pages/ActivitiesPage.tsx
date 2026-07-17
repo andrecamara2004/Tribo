@@ -12,6 +12,8 @@ import { getCurrentPosition, type Coords } from "../lib/geo";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
 
+const PAGE_SIZE = 12;
+
 type KindFilter = "ALL" | EventKind;
 
 const KIND_FILTERS: { value: KindFilter; label: string }[] = [
@@ -35,10 +37,16 @@ export function ActivitiesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [items, setItems] = useState<Activity[]>([]);
+  // Numbered pagination over server-filtered pages: `pages` holds every page
+  // fetched so far, `pageIndex` is the one on screen. Changing any filter resets
+  // back to page 1 (the load effect below).
+  const [pages, setPages] = useState<Activity[][]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [kind, setKind] = useState<KindFilter>("ALL");
   const [maxKm, setMaxKm] = useState<number | null>(null);
   const [queryInput, setQueryInput] = useState("");
@@ -54,7 +62,7 @@ export function ActivitiesPage() {
   }, [queryInput]);
 
   // (Re)load page 1 whenever any filter changes. The server does the filtering,
-  // so this stays correct across pagination (unlike a client-side filter).
+  // so numbered paging stays correct (unlike a client-side filter).
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -64,6 +72,7 @@ export function ActivitiesPage() {
       try {
         const page = await listActivities({
           status: "PUBLISHED",
+          limit: PAGE_SIZE,
           q: query,
           eventKind: kind,
           maxDistanceKm: maxKm ?? undefined,
@@ -74,8 +83,10 @@ export function ActivitiesPage() {
 
         if (cancelled) return;
 
-        setItems(page.items);
+        setPages([page.items]);
+        setPageIndex(0);
         setCursor(page.nextCursor);
+        setHasMore(page.nextCursor != null);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : "Failed to load activities.");
@@ -90,12 +101,19 @@ export function ActivitiesPage() {
     };
   }, [query, kind, maxKm, near, radiusKm]);
 
-  async function loadMore() {
-    setError(null);
+  async function loadNextPage() {
+    // Already fetched — just move forward.
+    if (pageIndex < pages.length - 1) {
+      setPageIndex((i) => i + 1);
+      return;
+    }
+    if (!cursor || loading) return;
 
+    setError(null);
     try {
       const page = await listActivities({
         status: "PUBLISHED",
+        limit: PAGE_SIZE,
         cursor,
         q: query,
         eventKind: kind,
@@ -104,12 +122,17 @@ export function ActivitiesPage() {
         nearLng: near?.lng,
         radiusKm: near ? radiusKm : undefined,
       });
-
-      setItems((prev) => [...prev, ...page.items]);
+      setPages((prev) => [...prev, page.items]);
+      setPageIndex((i) => i + 1);
       setCursor(page.nextCursor);
+      setHasMore(page.nextCursor != null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load activities.");
     }
+  }
+
+  function goToPrevPage() {
+    if (pageIndex > 0) setPageIndex((i) => i - 1);
   }
 
   async function toggleNear() {
@@ -128,7 +151,9 @@ export function ActivitiesPage() {
     }
   }
 
-  const visible = items;
+  const visible = pages[pageIndex] ?? [];
+  const hasFilters = query !== "" || kind !== "ALL" || maxKm != null || near != null;
+  const showPager = !loading && (pageIndex > 0 || hasMore || pages.length > 1);
 
   const canManage =
     user != null &&
@@ -259,7 +284,7 @@ export function ActivitiesPage() {
 
       {!loading && visible.length === 0 && (
         <p className="state-msg">
-          {query || kind !== "ALL" || maxKm != null
+          {hasFilters
             ? "No activities match your filters."
             : "No activities yet."}
         </p>
@@ -401,13 +426,18 @@ export function ActivitiesPage() {
         ))}
       </div>
 
-      {cursor && !loading && (
-        <div style={{ marginTop: 20 }}>
+      {showPager && (
+        <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <button className="btn btn-secondary" onClick={goToPrevPage} disabled={pageIndex === 0}>
+            Previous
+          </button>
+          <span className="sub">Page {pageIndex + 1}</span>
           <button
             className="btn btn-secondary"
-            onClick={loadMore}
+            onClick={loadNextPage}
+            disabled={pageIndex >= pages.length - 1 && !hasMore}
           >
-            Load more
+            Next
           </button>
         </div>
       )}

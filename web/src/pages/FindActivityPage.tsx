@@ -1,8 +1,10 @@
 // src/pages/FindActivityPage.tsx
 // "Find activities" — all published activities as pins on one map, with a side
-// list. Backend already returns lat/lng on the activities list; this is map-only.
-import { useEffect, useState } from "react";
+// list. Two ways to locate: a Google Places city search that re-centers/filters
+// the map, and a "Near me" GPS toggle that filters server-side by radius.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useJsApiLoader } from "@react-google-maps/api";
 import { listActivities, type Activity, type EventKind } from "../api/activities";
 import { Shell } from "../components/Shell";
 import { ActivitiesMap, type MapPoint } from "../components/MapView";
@@ -21,25 +23,48 @@ const KIND_FILTERS: { value: KindFilter; label: string }[] = [
 
 const RADII = [5, 10, 25, 50];
 
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
+type LocationFilter = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  zoom: number;
+  viewport?: { north: number; south: number; east: number; west: number } | null;
+};
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function FindActivityPage() {
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [kind, setKind] = useState<KindFilter>("ALL");
-  const [queryInput, setQueryInput] = useState("");
-  const [query, setQuery] = useState("");
   const [near, setNear] = useState<Coords | null>(null);
   const [radiusKm, setRadiusKm] = useState(25);
   const [geoBusy, setGeoBusy] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<LocationFilter | null>(null);
 
-  // Debounce the search box.
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(queryInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [queryInput]);
+  const { isLoaded } = useJsApiLoader({
+    id: "tribo-find-activities",
+    googleMapsApiKey: MAPS_KEY ?? "",
+    libraries: ["places"],
+  });
 
+  // Server-side filters: type + optional GPS radius. Place search is layered on
+  // top client-side (below), so it isn't part of this dependency list.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -48,7 +73,6 @@ export function FindActivityPage() {
         const page = await listActivities({
           status: "PUBLISHED",
           limit: 100,
-          q: query,
           eventKind: kind,
           nearLat: near?.lat,
           nearLng: near?.lng,
@@ -64,7 +88,45 @@ export function FindActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, kind, near, radiusKm]);
+  }, [kind, near, radiusKm]);
+
+  // Google Places city/place autocomplete → re-center the map + filter the list.
+  useEffect(() => {
+    if (!isLoaded || !inputRef.current || !window.google?.maps?.places) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ["(cities)"],
+      fields: ["formatted_address", "geometry", "name"],
+    });
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      const geometry = place.geometry?.location;
+      const viewport = place.geometry?.viewport;
+      if (!geometry) return;
+
+      const nextFilter: LocationFilter = {
+        label: place.formatted_address ?? place.name ?? "Selected location",
+        latitude: geometry.lat(),
+        longitude: geometry.lng(),
+        zoom: viewport ? 10 : 13,
+        viewport: viewport
+          ? {
+            north: viewport.getNorthEast().lat(),
+            south: viewport.getSouthWest().lat(),
+            east: viewport.getNorthEast().lng(),
+            west: viewport.getSouthWest().lng(),
+          }
+          : null,
+      };
+      setLocationFilter(nextFilter);
+      setSelectedId(null);
+    });
+
+    return () => {
+      window.google.maps.event.removeListener(listener);
+    };
+  }, [isLoaded]);
 
   async function toggleNear() {
     setGeoError(null);
@@ -82,11 +144,38 @@ export function FindActivityPage() {
     }
   }
 
-  const located = items.filter((a) => a.latitude != null && a.longitude != null);
+  const filteredItems = useMemo(() => {
+    if (!locationFilter) return items;
+
+    return items.filter((a) => {
+      if (a.latitude == null || a.longitude == null) return false;
+      if (locationFilter.viewport) {
+        return (
+          a.latitude <= locationFilter.viewport.north &&
+          a.latitude >= locationFilter.viewport.south &&
+          a.longitude <= locationFilter.viewport.east &&
+          a.longitude >= locationFilter.viewport.west
+        );
+      }
+
+      const distance = haversineKm(
+        a.latitude,
+        a.longitude,
+        locationFilter.latitude,
+        locationFilter.longitude,
+      );
+      return distance <= 40;
+    });
+  }, [items, locationFilter]);
+
+  const located = filteredItems.filter((a) => a.latitude != null && a.longitude != null);
   const points: MapPoint[] = located.map((a) => ({
-    id: a.id, title: a.title, location: a.location,
-    latitude: a.latitude as number, longitude: a.longitude as number,
-    eventKind: a.eventKind,
+    id: a.id,
+    title: a.title,
+    location: a.location,
+    latitude: a.latitude as number,
+    longitude: a.longitude as number,
+    kind: a.eventKind,
   }));
 
   return (
@@ -102,11 +191,10 @@ export function FindActivityPage() {
         <div className="search-box">
           <Icon name="search" size={16} />
           <input
-            type="search"
-            value={queryInput}
-            onChange={(e) => setQueryInput(e.target.value)}
-            placeholder="Search by title, place, host or tag…"
-            aria-label="Search activities"
+            ref={inputRef}
+            type="text"
+            placeholder="Search a city or place…"
+            aria-label="Search by city or place"
           />
         </div>
 
@@ -147,6 +235,18 @@ export function FindActivityPage() {
           </select>
         )}
 
+        {locationFilter && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setLocationFilter(null);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+          >
+            Clear place
+          </button>
+        )}
+
         <div className="map-legend">
           <span><i className="dot volunteer" /> Volunteer</span>
           <span><i className="dot run" /> Runs</span>
@@ -155,13 +255,19 @@ export function FindActivityPage() {
 
       {geoError && <p className="state-msg error">{geoError}</p>}
 
+      {locationFilter && (
+        <div className="sub" style={{ marginBottom: 12 }}>
+          Showing activities in <strong>{locationFilter.label}</strong>
+        </div>
+      )}
+
       {loading ? (
         <Spinner label="Loading…" />
       ) : (
         <div className="find-layout">
           <div className="find-list">
-            {items.length === 0 && <p className="state-msg">No activities yet.</p>}
-            {items.map((a) => {
+            {filteredItems.length === 0 && <p className="state-msg">No activities found for this location.</p>}
+            {filteredItems.map((a) => {
               const hasLoc = a.latitude != null && a.longitude != null;
               return (
                 <button
@@ -190,6 +296,7 @@ export function FindActivityPage() {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onView={(id) => navigate(`/activities/${id}`)}
+                focusLocation={locationFilter ? { latitude: locationFilter.latitude, longitude: locationFilter.longitude, zoom: locationFilter.zoom } : null}
               />
             )}
           </div>
