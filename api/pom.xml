@@ -162,7 +162,7 @@
         <configuration>
           <cloudSdkVersion>568.0.0</cloudSdkVersion>
           <projectId>tribo-497810</projectId>
-          <version>1</version>
+          <version>GCLOUD_CONFIG</version>
         </configuration>
       </plugin>
 
