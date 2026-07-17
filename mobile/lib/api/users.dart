@@ -53,6 +53,7 @@ class Me {
   final String email;
   final String fullName;
   final int age;
+  final String birthDate; // ISO "YYYY-MM-DD"
   final String role;
   final bool verified;
   final String profileVisibility; // PUBLIC | PRIVATE
@@ -71,6 +72,7 @@ class Me {
     required this.email,
     required this.fullName,
     required this.age,
+    this.birthDate = '',
     required this.role,
     required this.verified,
     this.profileVisibility = 'PUBLIC',
@@ -90,6 +92,7 @@ class Me {
         email: (j['email'] ?? '') as String,
         fullName: (j['fullName'] ?? '') as String,
         age: (j['age'] as num?)?.toInt() ?? 0,
+        birthDate: (j['birthDate'] ?? '') as String,
         role: (j['role'] ?? '') as String,
         verified: (j['verified'] ?? false) as bool,
         profileVisibility: (j['profileVisibility'] ?? 'PUBLIC') as String,

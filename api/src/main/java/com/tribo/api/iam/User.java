@@ -24,7 +24,7 @@ public record User(
         String passwordHash, // bcrypt hash (B-2)
         String fullName,
         String phoneNumber, // E.164 format e.g. "+351912345678"
-        int age,
+        String birthDate, // ISO date "YYYY-MM-DD"; age is derived from it
         Role role,
         ProfileVisibility profileVisibility,
         Instant createdAt,
@@ -35,6 +35,20 @@ public record User(
         String pictureUrl, // public URL of the user's profile picture, or null
         boolean emailVerified // true once the user confirms their email (login gate)
 ) {
+    /** Age in whole years derived from {@link #birthDate}, or 0 if unknown. */
+    public int age() {
+        if (birthDate == null || birthDate.isBlank()) {
+            return 0;
+        }
+        try {
+            return (int) java.time.temporal.ChronoUnit.YEARS.between(
+                    java.time.LocalDate.parse(birthDate),
+                    java.time.LocalDate.now(java.time.ZoneOffset.UTC));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public enum ProfileVisibility {
         PUBLIC,
         PRIVATE

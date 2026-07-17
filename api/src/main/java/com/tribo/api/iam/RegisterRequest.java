@@ -20,6 +20,6 @@ public class RegisterRequest {
     public String password;
     public String fullName;
     public String phoneNumber;
-    public Integer age;   // boxed so a missing value is null (→ 400) rather than silently 0
+    public String birthDate; // ISO date "YYYY-MM-DD"; age is derived + range-checked server-side
     public String role;   // optional; null/blank → END_USER. See class doc for constraints.
 }

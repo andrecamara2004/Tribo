@@ -7,7 +7,7 @@ export interface RegisterInput {
   password: string;
   fullName: string;
   phoneNumber: string;
-  age: number;
+  birthDate: string; // ISO date "YYYY-MM-DD"; age is derived server-side
   role?: string; // optional self-selected role (D-1); omit → END_USER
 }
 

@@ -18,7 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _password = TextEditingController();
   final _fullName = TextEditingController();
   final _phone = TextEditingController();
-  final _age = TextEditingController();
+  DateTime? _birthDate;
   String _role = 'END_USER';
   String? _error;
   bool _busy = false;
@@ -41,7 +41,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _password.dispose();
     _fullName.dispose();
     _phone.dispose();
-    _age.dispose();
     super.dispose();
   }
 
@@ -53,9 +52,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _error = 'Password must be at least ${_policy.minLength} characters.');
       return;
     }
-    final age = int.tryParse(_age.text.trim());
-    if (age == null || age < 13 || age > 120) {
-      setState(() => _error = 'Age must be a whole number between 13 and 120.');
+    if (_birthDate == null) {
+      setState(() => _error = 'Your date of birth is required.');
+      return;
+    }
+    final age = _ageFrom(_birthDate!);
+    if (age < 13 || age > 120) {
+      setState(() => _error = 'You must be between 13 and 120 years old.');
       return;
     }
 
@@ -66,7 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _password.text,
         fullName: _fullName.text.trim(),
         phoneNumber: _phone.text.trim(),
-        age: age,
+        birthDate: _isoDate(_birthDate!),
         role: _role,
       ));
       // Login is gated on email confirmation — show the "check your email" panel
@@ -89,6 +92,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (_) {
       if (mounted) setState(() => _resendMsg = "Couldn't resend right now — try again in a minute.");
     }
+  }
+
+  int _ageFrom(DateTime dob) {
+    final now = DateTime.now();
+    var age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) age--;
+    return age;
+  }
+
+  // ISO for the API; day/month/year for display.
+  String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _displayDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(now.year - 120),
+      lastDate: now,
+      helpText: 'Select your date of birth',
+    );
+    if (picked != null && mounted) setState(() => _birthDate = picked);
   }
 
   Widget _buildCheckEmail() {
@@ -189,13 +218,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _age,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Age',
-                    border: OutlineInputBorder(),
+                OutlinedButton.icon(
+                  onPressed: _pickBirthDate,
+                  icon: const Icon(Icons.cake_outlined),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    alignment: Alignment.centerLeft,
+                    foregroundColor: _birthDate == null ? Colors.grey.shade700 : null,
                   ),
+                  label: Text(_birthDate == null
+                      ? 'Date of birth'
+                      : 'Born ${_displayDate(_birthDate!)}'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(

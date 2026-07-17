@@ -23,6 +23,7 @@ export interface Me {
   email: string;
   fullName: string;
   age: number;
+  birthDate: string; // ISO "YYYY-MM-DD"
   role: string;
   verified: boolean;
   profileVisibility: string;

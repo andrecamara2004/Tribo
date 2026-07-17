@@ -53,7 +53,7 @@ public class UserRepository {
                 .set("passwordHash", user.passwordHash())
                 .set("fullName", user.fullName())
                 .set("phoneNumber", user.phoneNumber())
-                .set("age", user.age())
+                .set("birthDate", user.birthDate() == null ? "" : user.birthDate())
                 .set("role", user.role().name())
                 .set("profileVisibility", user.profileVisibility().name())
                 .set("createdAt", user.createdAt().toString())
@@ -121,7 +121,7 @@ public class UserRepository {
                 e.getString("passwordHash"),
                 e.getString("fullName"),
                 e.getString("phoneNumber"),
-                (int) e.getLong("age"),
+                birthDateOf(e),
                 Role.valueOf(e.getString("role")),
                 User.ProfileVisibility.valueOf(e.getString("profileVisibility")),
                 Instant.parse(e.getString("createdAt")),
@@ -140,6 +140,23 @@ public class UserRepository {
     }
 
     /**
+     * Reads the birth date, tolerating legacy entities that only stored an
+     * integer {@code age}: those get an approximate DOB (Jan 1 of the birth
+     * year), so age derivation still works for pre-existing accounts.
+     */
+    private static String birthDateOf(Entity e) {
+        if (e.contains("birthDate")) {
+            return e.getString("birthDate");
+        }
+        if (e.contains("age")) {
+            long age = e.getLong("age");
+            return java.time.LocalDate.now(java.time.ZoneOffset.UTC)
+                    .minusYears(age).withDayOfYear(1).toString();
+        }
+        return "";
+    }
+
+    /**
      * Marks a user verified (backoffice action, D-1). No-op if the user is
      * already verified. Returns the updated user, or empty if no such user.
      */
@@ -152,7 +169,7 @@ public class UserRepository {
             return found;
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);
@@ -172,7 +189,7 @@ public class UserRepository {
             return found;
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);
@@ -186,7 +203,7 @@ public class UserRepository {
         User u = found.get();
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), Math.max(0, km), u.pictureUrl(),
                 u.emailVerified());
         save(updated);
@@ -203,7 +220,7 @@ public class UserRepository {
             return found;
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), true);
         save(updated);
         return Optional.of(updated);
@@ -217,7 +234,7 @@ public class UserRepository {
         User u = found.get();
         User updated = new User(
                 u.id(), u.email(), newHash, u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
                 u.emailVerified());
         save(updated);
@@ -234,7 +251,7 @@ public class UserRepository {
             return found;
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), visibility, u.createdAt(),
+                u.birthDate(), u.role(), visibility, u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
                 u.emailVerified());
         save(updated);
@@ -284,7 +301,7 @@ public class UserRepository {
             return found; // already in the desired state, no-op
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
         save(updated);
         return Optional.of(updated);

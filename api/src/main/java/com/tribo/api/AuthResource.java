@@ -20,6 +20,8 @@ import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.iam.VerificationTokenRepository;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
@@ -109,9 +111,21 @@ public class AuthResource {
         if (phone == null || phone.isEmpty()) {
             throw new ValidationException("Phone number is required.");
         }
-        if (req.age == null || req.age < MIN_AGE || req.age > MAX_AGE) {
+        String birthDate = req.birthDate == null ? null : req.birthDate.trim();
+        LocalDate dob;
+        try {
+            dob = LocalDate.parse(birthDate); // expects ISO YYYY-MM-DD
+        } catch (Exception e) {
+            throw new ValidationException("A valid birth date (YYYY-MM-DD) is required.");
+        }
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        if (dob.isAfter(today)) {
+            throw new ValidationException("Birth date can't be in the future.");
+        }
+        int age = (int) ChronoUnit.YEARS.between(dob, today);
+        if (age < MIN_AGE || age > MAX_AGE) {
             throw new ValidationException(
-                    "Age must be between " + MIN_AGE + " and " + MAX_AGE + ".");
+                    "You must be between " + MIN_AGE + " and " + MAX_AGE + " years old.");
         }
 
         if (USERS.existsByEmail(email)) {
@@ -121,14 +135,18 @@ public class AuthResource {
         Role role = resolveRequestedRole(req.role);
         boolean verified;
         boolean emailVerified;
-        // bootstrap sysadmin
+        // Bootstrap privileged accounts by email (env-configured). These are
+        // seeded ready-to-use: verified AND email-verified (they skip the email
+        // gate, since their domain may not receive mail).
         String bootstrapEmail = System.getenv("BOOTSTRAP_ADMIN_EMAIL");
         if (bootstrapEmail != null && email.equalsIgnoreCase(bootstrapEmail.trim())) {
-            // One-time seed: the configured email is created as a verified
-            // SYSADMIN so there is a privileged account to verify the rest.
             role = Role.SYSADMIN;
             verified = true;
-            emailVerified = true; // seed account skips the email gate
+            emailVerified = true;
+        } else if (bootstrapBackofficeEmails().contains(email)) {
+            role = Role.BACKOFFICE;
+            verified = true;
+            emailVerified = true;
         } else {
             // END_USER is usable immediately (once email-verified); privileged
             // roles also await backoffice verification before they can act.
@@ -143,7 +161,7 @@ public class AuthResource {
                 PasswordHasher.hash(req.password),
                 fullName,
                 phone,
-                req.age,
+                birthDate,
                 role,
                 User.ProfileVisibility.PUBLIC,
                 Instant.now(),
@@ -202,6 +220,25 @@ public class AuthResource {
             throw new ForbiddenException("That role cannot be self-registered.");
         }
         return role;
+    }
+
+    /**
+     * Lowercased emails seeded as BACKOFFICE, from the comma-separated
+     * BOOTSTRAP_BACKOFFICE_EMAILS env var (empty when unset).
+     */
+    private static java.util.Set<String> bootstrapBackofficeEmails() {
+        String raw = System.getenv("BOOTSTRAP_BACKOFFICE_EMAILS");
+        if (raw == null || raw.isBlank()) {
+            return java.util.Set.of();
+        }
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (String s : raw.split(",")) {
+            String e = s.trim().toLowerCase();
+            if (!e.isEmpty()) {
+                out.add(e);
+            }
+        }
+        return out;
     }
 
     @POST

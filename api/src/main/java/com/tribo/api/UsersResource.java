@@ -104,7 +104,7 @@ public class UsersResource {
         VolunteerStats.Summary vol = VolunteerStats.summary(u.id());
         RunStats stats = RunStats.from(RUNS.listByOwner(u.id(), Integer.MAX_VALUE), Instant.now());
         MeResponse body = new MeResponse(
-                u.id(), u.email(), u.fullName(), u.age(), u.role().name(),
+                u.id(), u.email(), u.fullName(), u.age(), u.birthDate(), u.role().name(),
                 u.verified(), u.profileVisibility().name(), u.createdAt().toString(),
                 handleFor(u.email()), AvatarColor.forId(u.id()), u.pictureUrl(), clan,
                 vol.events(), vol.staffEligible(), vol.points(), u.weeklyGoalKm(),
@@ -144,7 +144,7 @@ public class UsersResource {
         // Update User
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
-                u.age(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), pictureUrl,
                 u.emailVerified());
         USERS.save(updated);
@@ -330,7 +330,7 @@ public class UsersResource {
 
     /** Profile response - hides passwordHash and other secrets. */
     public record MeResponse(
-            String userId, String email, String fullName, int age, String role,
+            String userId, String email, String fullName, int age, String birthDate, String role,
             boolean verified, String profileVisibility, String createdAt,
             String handle, String avatarColor, String pictureUrl, ClanRef clan,
             int volunteerEvents, boolean staffEligible, long volunteerPoints,

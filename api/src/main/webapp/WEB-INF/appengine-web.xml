@@ -24,6 +24,10 @@
              (to an email you control, with a strong password) only when you need
              to seed the first SYSADMIN, then unset and redeploy. See
              docs/sprint-2-backlog.md D-1. -->
+        <!-- Comma-separated emails seeded as verified BACKOFFICE accounts on
+             registration (they skip the email-confirmation gate). Not secret. -->
+        <env-var name="BOOTSTRAP_BACKOFFICE_EMAILS"
+                 value="boffice1@innertribe.com,boffice2@innertribe.com,boffice3@innertribe.com"/>
     </env-variables>
 
     <!-- B4-8: cap to 2 instances to silence the deploy warning and bound cost

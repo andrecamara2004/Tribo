@@ -13,7 +13,7 @@ class RegisterInput {
   final String password;
   final String fullName;
   final String phoneNumber;
-  final int age;
+  final String birthDate; // ISO "YYYY-MM-DD"; age derived server-side
   final String role; // self-selected (D-1); END_USER unless ACTIVITY_MANAGER/PARTNER
 
   const RegisterInput({
@@ -21,7 +21,7 @@ class RegisterInput {
     required this.password,
     required this.fullName,
     required this.phoneNumber,
-    required this.age,
+    required this.birthDate,
     this.role = 'END_USER',
   });
 
@@ -30,7 +30,7 @@ class RegisterInput {
         'password': password,
         'fullName': fullName,
         'phoneNumber': phoneNumber,
-        'age': age,
+        'birthDate': birthDate,
         'role': role,
       };
 }

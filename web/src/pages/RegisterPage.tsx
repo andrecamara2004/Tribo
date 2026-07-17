@@ -5,10 +5,35 @@ import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/http";
 import { getPasswordPolicy, resendVerification, type PasswordPolicy } from "../api/auth";
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
+const THIS_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 108 }, (_, i) => THIS_YEAR - 13 - i); // 13–120 y old
+
+/** Whole years between an ISO birth date and today. */
+function ageFromBirthDate(iso: string): number {
+  const dob = new Date(iso + "T00:00:00");
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+/** True if y/m/d is a real calendar date (rejects e.g. 31 Feb). */
+function isRealDate(y: number, m: number, d: number): boolean {
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
 export function RegisterPage() {
   const { register } = useAuth();
   const [form, setForm] = useState({
-    email: "", password: "", fullName: "", phoneNumber: "", age: "", role: "END_USER",
+    email: "", password: "", fullName: "", phoneNumber: "",
+    birthDay: "", birthMonth: "", birthYear: "", role: "END_USER",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,9 +57,14 @@ export function RegisterPage() {
     const minLen = policy?.minLength ?? 8;
     if (form.password.length < minLen)
       return setError(`Password must be at least ${minLen} characters.`);
-    const ageNum = Number(form.age);
-    if (!Number.isInteger(ageNum) || ageNum < 13 || ageNum > 120)
-      return setError("Age must be a whole number between 13 and 120.");
+    if (!form.birthDay || !form.birthMonth || !form.birthYear)
+      return setError("Your date of birth is required.");
+    const y = Number(form.birthYear), mo = Number(form.birthMonth), d = Number(form.birthDay);
+    if (!isRealDate(y, mo, d)) return setError("That date of birth isn't valid.");
+    const birthDate = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const age = ageFromBirthDate(birthDate);
+    if (age < 13 || age > 120)
+      return setError("You must be between 13 and 120 years old.");
 
     setBusy(true);
     try {
@@ -43,7 +73,7 @@ export function RegisterPage() {
         password: form.password,
         fullName: form.fullName,
         phoneNumber: form.phoneNumber,
-        age: ageNum,
+        birthDate,
         role: form.role,
       });
       // Login is gated on email confirmation — show the "check your email" panel.
@@ -143,9 +173,24 @@ export function RegisterPage() {
               placeholder="+351…" autoComplete="tel" />
           </div>
           <div className="field">
-            <label htmlFor="age">Age</label>
-            <input id="age" type="number" value={form.age}
-              onChange={(e) => update("age", e.target.value)} required min={13} max={120} />
+            <label>Date of birth</label>
+            <div className="dob-row">
+              <select value={form.birthDay} onChange={(e) => update("birthDay", e.target.value)}
+                required aria-label="Day">
+                <option value="">Day</option>
+                {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select value={form.birthMonth} onChange={(e) => update("birthMonth", e.target.value)}
+                required aria-label="Month">
+                <option value="">Month</option>
+                {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+              </select>
+              <select value={form.birthYear} onChange={(e) => update("birthYear", e.target.value)}
+                required aria-label="Year">
+                <option value="">Year</option>
+                {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
           </div>
           <div className="field">
             <label htmlFor="role">Account type</label>
