@@ -4,10 +4,10 @@
 // the map, and a "Near me" GPS toggle that filters server-side by radius.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useJsApiLoader } from "@react-google-maps/api";
 import { listActivities, type Activity, type EventKind } from "../api/activities";
 import { Shell } from "../components/Shell";
 import { ActivitiesMap, type MapPoint } from "../components/MapView";
+import { useMapsLoader } from "../lib/maps";
 import { Icon } from "../components/Icon";
 import { Spinner } from "../components/Spinner";
 import { formatWhen } from "../lib/activity";
@@ -22,8 +22,6 @@ const KIND_FILTERS: { value: KindFilter; label: string }[] = [
 ];
 
 const RADII = [5, 10, 25, 50];
-
-const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
 type LocationFilter = {
   label: string;
@@ -57,11 +55,7 @@ export function FindActivityPage() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState<LocationFilter | null>(null);
 
-  const { isLoaded } = useJsApiLoader({
-    id: "tribo-find-activities",
-    googleMapsApiKey: MAPS_KEY ?? "",
-    libraries: ["places"],
-  });
+  const { isLoaded } = useMapsLoader();
 
   // Server-side filters: type + optional GPS radius. Place search is layered on
   // top client-side (below), so it isn't part of this dependency list.

@@ -2,9 +2,9 @@
 // Google Maps for event locations. Reads the JS API key from
 // VITE_GOOGLE_MAPS_API_KEY (build-time). Degrades to a friendly placeholder
 // when no key is configured, so the app still builds/runs without one.
-import { useJsApiLoader, GoogleMap, MarkerF, InfoWindowF } from "@react-google-maps/api";
+import { GoogleMap, MarkerF, InfoWindowF } from "@react-google-maps/api";
+import { MAPS_KEY as KEY, useMapsLoader } from "../lib/maps";
 
-const KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const CONTAINER = { width: "100%", height: "100%" };
 const LISBON = { lat: 38.7223, lng: -9.1393 };
 
@@ -38,7 +38,7 @@ function MapImpl({
   marker: LatLng | null;
   onPick?: (lat: number, lng: number) => void;
 }) {
-  const { isLoaded, loadError } = useJsApiLoader({ id: "tribo-gmaps", googleMapsApiKey: KEY! });
+  const { isLoaded, loadError } = useMapsLoader();
   if (loadError) return <Placeholder note="Map failed to load — check the API key / billing." />;
   if (!isLoaded) return <Placeholder note="Loading map…" />;
   return (
@@ -83,7 +83,7 @@ function ActivitiesMapImpl({
   onView: (id: string) => void;
   focusLocation?: { latitude: number; longitude: number; zoom: number } | null;
 }) {
-  const { isLoaded, loadError } = useJsApiLoader({ id: "tribo-gmaps", googleMapsApiKey: KEY! });
+  const { isLoaded, loadError } = useMapsLoader();
   if (loadError) return <Placeholder note="Map failed to load — check the API key / billing." />;
   if (!isLoaded) return <Placeholder note="Loading map…" />;
 

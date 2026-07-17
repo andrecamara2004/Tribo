@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import * as authApi from "../api/auth";
 import type { CurrentUser, RegisterInput } from "../api/auth";
 import { getMe, type Me } from "../api/users";
+import { refreshAccessToken } from "../api/http";
 import { hasPersistedSession } from "./tokenStore";
 
 interface AuthContextValue {
@@ -32,9 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // On load: if a refresh token persisted, try to re-establish the session.
-  // whoami() will 401 (no access token in memory yet), which makes apiFetch
-  // refresh using the persisted refresh token and retry — that IS the bootstrap.
+  // On load: if a refresh token persisted, re-establish the session. We mint a
+  // fresh access token FIRST (from the persisted refresh token), then whoami()
+  // — so the identity probe carries a valid token instead of firing a noisy
+  // (though recoverable) 401. If the refresh fails, whoami still triggers
+  // apiFetch's reactive refresh as a fallback.
   useEffect(() => {
     let cancelled = false;
     async function bootstrap() {
@@ -43,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
+        await refreshAccessToken();
         const me = await authApi.whoami();
         if (cancelled) return;
         setUser(me);

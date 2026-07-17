@@ -50,7 +50,7 @@ let refreshInFlight: Promise<string | null> | null = null;
  * token, or null if refresh failed (no/expired/revoked refresh token).
  * De-duplicated: concurrent callers share one in-flight request.
  */
-function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight !== null) {
     return refreshInFlight; // someone's already refreshing — join them
   }
