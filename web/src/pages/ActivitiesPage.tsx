@@ -65,10 +65,10 @@ export function ActivitiesPage() {
   // so numbered paging stays correct (unlike a client-side filter).
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const page = await listActivities({
           status: "PUBLISHED",

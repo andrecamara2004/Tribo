@@ -67,8 +67,8 @@ export function FindActivityPage() {
   // top client-side (below), so it isn't part of this dependency list.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     (async () => {
+      setLoading(true);
       try {
         const page = await listActivities({
           status: "PUBLISHED",
