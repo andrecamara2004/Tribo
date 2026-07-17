@@ -119,12 +119,28 @@ export async function listActivities(opts: {
   status?: ActivityStatus | "ALL";
   limit?: number;
   cursor?: string | null;
+  q?: string;
+  eventKind?: EventKind | "ALL";
+  minDistanceKm?: number;
+  maxDistanceKm?: number;
+  nearLat?: number;
+  nearLng?: number;
+  radiusKm?: number;
 } = {}): Promise<ActivityPage> {
   const params = new URLSearchParams();
 
   if (opts.status) params.set("status", opts.status);
   if (opts.limit) params.set("limit", String(opts.limit));
   if (opts.cursor) params.set("cursor", opts.cursor);
+  if (opts.q && opts.q.trim()) params.set("q", opts.q.trim());
+  if (opts.eventKind && opts.eventKind !== "ALL") params.set("eventKind", opts.eventKind);
+  if (opts.minDistanceKm != null) params.set("minDistanceKm", String(opts.minDistanceKm));
+  if (opts.maxDistanceKm != null) params.set("maxDistanceKm", String(opts.maxDistanceKm));
+  if (opts.nearLat != null && opts.nearLng != null) {
+    params.set("nearLat", String(opts.nearLat));
+    params.set("nearLng", String(opts.nearLng));
+    if (opts.radiusKm != null) params.set("radiusKm", String(opts.radiusKm));
+  }
 
   const qs = params.toString();
 

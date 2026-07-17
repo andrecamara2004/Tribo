@@ -18,6 +18,10 @@ class Activity {
   final DateTime endsAt;
   final int capacity;
   final String status; // DRAFT | PUBLISHED | CANCELLED
+  final String eventKind; // RUN | VOLUNTEER
+  final double distanceKm;
+  final double averageRating;
+  final int reviewCount;
   final double? latitude; // optional location pin for the map
   final double? longitude;
 
@@ -32,6 +36,10 @@ class Activity {
     required this.endsAt,
     required this.capacity,
     required this.status,
+    this.eventKind = 'RUN',
+    this.distanceKm = 0,
+    this.averageRating = 0,
+    this.reviewCount = 0,
     this.latitude,
     this.longitude,
   });
@@ -49,6 +57,10 @@ class Activity {
         endsAt: DateTime.parse(j['endsAt'] as String),
         capacity: (j['capacity'] as num).toInt(),
         status: j['status'] as String,
+        eventKind: (j['eventKind'] ?? 'RUN') as String,
+        distanceKm: (j['distanceKm'] as num?)?.toDouble() ?? 0,
+        averageRating: (j['averageRating'] as num?)?.toDouble() ?? 0,
+        reviewCount: (j['reviewCount'] as num?)?.toInt() ?? 0,
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
       );
@@ -107,11 +119,32 @@ class ActivitiesApi {
   ActivitiesApi(this._client);
   final ApiClient _client;
 
-  /// GET /activities — catalog/discovery with optional status filter + paging.
-  Future<ActivityPage> list({String status = 'PUBLISHED', String? cursor, int? limit}) async {
+  /// GET /activities — catalog/discovery with optional status filter, free-text
+  /// search, type/distance filters and paging.
+  Future<ActivityPage> list({
+    String status = 'PUBLISHED',
+    String? cursor,
+    int? limit,
+    String? q,
+    String? eventKind,
+    double? minDistanceKm,
+    double? maxDistanceKm,
+    double? nearLat,
+    double? nearLng,
+    double? radiusKm,
+  }) async {
     final params = <String, String>{'status': status};
     if (cursor != null && cursor.isNotEmpty) params['cursor'] = cursor;
     if (limit != null) params['limit'] = '$limit';
+    if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+    if (eventKind != null && eventKind != 'ALL') params['eventKind'] = eventKind;
+    if (minDistanceKm != null) params['minDistanceKm'] = '$minDistanceKm';
+    if (maxDistanceKm != null) params['maxDistanceKm'] = '$maxDistanceKm';
+    if (nearLat != null && nearLng != null) {
+      params['nearLat'] = '$nearLat';
+      params['nearLng'] = '$nearLng';
+      if (radiusKm != null) params['radiusKm'] = '$radiusKm';
+    }
     final qs = Uri(queryParameters: params).query;
     final data = await _client.get('/activities?$qs') as Map<String, dynamic>?;
     if (data == null) return const ActivityPage([], null);

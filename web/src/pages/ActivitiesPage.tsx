@@ -6,7 +6,9 @@ import { listActivities, type Activity, type EventKind } from "../api/activities
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
 import { Icon } from "../components/Icon";
+import { Spinner } from "../components/Spinner";
 import { statusPillClass, statusLabel, formatWhen } from "../lib/activity";
+import { getCurrentPosition, type Coords } from "../lib/geo";
 
 const MANAGER_ROLES = ["ACTIVITY_MANAGER", "PARTNER", "SYSADMIN"];
 
@@ -18,6 +20,17 @@ const KIND_FILTERS: { value: KindFilter; label: string }[] = [
   { value: "RUN", label: "Runs" },
 ];
 
+// Upper-bound distance buckets for the distance filter (null = any).
+const DISTANCE_FILTERS: { value: number | null; label: string }[] = [
+  { value: null, label: "Any distance" },
+  { value: 5, label: "≤ 5 km" },
+  { value: 10, label: "≤ 10 km" },
+  { value: 21, label: "≤ 21 km" },
+  { value: 42, label: "≤ 42 km" },
+];
+
+const RADII = [5, 10, 25, 50];
+
 export function ActivitiesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -27,13 +40,37 @@ export function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<KindFilter>("ALL");
+  const [maxKm, setMaxKm] = useState<number | null>(null);
+  const [queryInput, setQueryInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [near, setNear] = useState<Coords | null>(null);
+  const [radiusKm, setRadiusKm] = useState(25);
+  const [geoBusy, setGeoBusy] = useState(false);
 
+  // Debounce the search box so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(queryInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [queryInput]);
+
+  // (Re)load page 1 whenever any filter changes. The server does the filtering,
+  // so this stays correct across pagination (unlike a client-side filter).
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
 
     (async () => {
       try {
-        const page = await listActivities({ status: "PUBLISHED" });
+        const page = await listActivities({
+          status: "PUBLISHED",
+          q: query,
+          eventKind: kind,
+          maxDistanceKm: maxKm ?? undefined,
+          nearLat: near?.lat,
+          nearLng: near?.lng,
+          radiusKm: near ? radiusKm : undefined,
+        });
 
         if (cancelled) return;
 
@@ -51,7 +88,7 @@ export function ActivitiesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [query, kind, maxKm, near, radiusKm]);
 
   async function loadMore() {
     setError(null);
@@ -60,6 +97,12 @@ export function ActivitiesPage() {
       const page = await listActivities({
         status: "PUBLISHED",
         cursor,
+        q: query,
+        eventKind: kind,
+        maxDistanceKm: maxKm ?? undefined,
+        nearLat: near?.lat,
+        nearLng: near?.lng,
+        radiusKm: near ? radiusKm : undefined,
       });
 
       setItems((prev) => [...prev, ...page.items]);
@@ -69,10 +112,23 @@ export function ActivitiesPage() {
     }
   }
 
-  const visible =
-    kind === "ALL"
-      ? items
-      : items.filter((a) => a.eventKind === kind);
+  async function toggleNear() {
+    setError(null);
+    if (near) {
+      setNear(null);
+      return;
+    }
+    setGeoBusy(true);
+    try {
+      setNear(await getCurrentPosition());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't get your location.");
+    } finally {
+      setGeoBusy(false);
+    }
+  }
+
+  const visible = items;
 
   const canManage =
     user != null &&
@@ -128,34 +184,85 @@ export function ActivitiesPage() {
         </div>
       )}
 
-      <div
-        className="kind-filter"
-        role="tablist"
-        aria-label="Filter activities by type"
-      >
-        {KIND_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            role="tab"
-            aria-selected={kind === f.value}
-            className={kind === f.value ? "active" : ""}
-            onClick={() => setKind(f.value)}
+      <div className="activities-filters">
+        <div className="search-box">
+          <Icon name="search" size={16} />
+          <input
+            type="search"
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            placeholder="Search by title, place, host or tag…"
+            aria-label="Search activities"
+          />
+        </div>
+
+        <div
+          className="kind-filter"
+          role="tablist"
+          aria-label="Filter activities by type"
+        >
+          {KIND_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              role="tab"
+              aria-selected={kind === f.value}
+              className={kind === f.value ? "active" : ""}
+              onClick={() => setKind(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <select
+          className="distance-filter"
+          value={maxKm ?? ""}
+          onChange={(e) => setMaxKm(e.target.value === "" ? null : Number(e.target.value))}
+          aria-label="Filter activities by distance"
+        >
+          {DISTANCE_FILTERS.map((d) => (
+            <option key={d.label} value={d.value ?? ""}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+
+        <button
+          className={"btn btn-secondary near-btn" + (near ? " active" : "")}
+          onClick={toggleNear}
+          disabled={geoBusy}
+          title="Show activities near your current location"
+        >
+          {geoBusy ? <Spinner size={14} /> : <Icon name="pin" size={14} />}{" "}
+          {near ? "Near me: on" : "Near me"}
+        </button>
+
+        {near && (
+          <select
+            className="distance-filter"
+            value={radiusKm}
+            onChange={(e) => setRadiusKm(Number(e.target.value))}
+            aria-label="Proximity radius"
           >
-            {f.label}
-          </button>
-        ))}
+            {RADII.map((r) => (
+              <option key={r} value={r}>within {r} km</option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {loading && (
-        <p className="state-msg">Loading activities…</p>
-      )}
+      {loading && <Spinner label="Loading activities…" />}
 
       {error && (
         <p className="state-msg error">{error}</p>
       )}
 
       {!loading && visible.length === 0 && (
-        <p className="state-msg">No activities yet.</p>
+        <p className="state-msg">
+          {query || kind !== "ALL" || maxKm != null
+            ? "No activities match your filters."
+            : "No activities yet."}
+        </p>
       )}
 
       <div className="vol-grid">

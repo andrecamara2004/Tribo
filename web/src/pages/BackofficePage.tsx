@@ -12,6 +12,7 @@ import {
 } from "../api/admin";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
+import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
 import { formatWhen } from "../lib/activity";
 
@@ -135,7 +136,7 @@ export function BackofficePage() {
         </div>
 
         {loading ? (
-          <p className="state-msg">Loading…</p>
+          <Spinner label="Loading…" />
         ) : pending.length === 0 ? (
           <p className="state-msg" style={{ marginTop: 0 }}>Nothing waiting — the queue is clear. 🎉</p>
         ) : (
@@ -176,7 +177,7 @@ export function BackofficePage() {
         </div>
 
         {loading ? (
-          <p className="state-msg">Loading…</p>
+          <Spinner label="Loading…" />
         ) : users.length === 0 ? (
           <p className="state-msg" style={{ marginTop: 0 }}>No users yet.</p>
         ) : (

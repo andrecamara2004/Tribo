@@ -753,6 +753,115 @@ code {
   color: #fff;
 }
 
+/* Search + type + distance controls row above the activity grid. */
+.activities-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.activities-filters .kind-filter {
+  margin-bottom: 0;
+}
+
+.search-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 200px;
+  padding: 0 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 9px 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.distance-filter {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Reusable loading spinner. */
+.spinner {
+  display: inline-block;
+  border: 2px solid var(--line);
+  border-top-color: var(--green-500);
+  border-radius: 50%;
+  animation: spinner-spin 0.7s linear infinite;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.spinner-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Near-me toggle button state. */
+.near-btn.active {
+  background: var(--green-500);
+  color: #fff;
+  border-color: var(--green-500);
+}
+
+/* Marker colour legend for the discovery map. */
+.map-legend {
+  display: inline-flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.map-legend .dot.volunteer {
+  background: #2e9e46;
+}
+
+.map-legend .dot.run {
+  background: #3b7ddd;
+}
+
 .vol-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

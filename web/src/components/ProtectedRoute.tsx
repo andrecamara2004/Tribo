@@ -2,6 +2,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import type { ReactNode } from "react";
+import { Spinner } from "./Spinner";
 
 /**
  * Gates a route on authentication, and optionally on role.
@@ -16,7 +17,7 @@ export function ProtectedRoute({
   roles?: string[];
 }) {
   const { user, loading } = useAuth();
-  if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
+  if (loading) return <div style={{ padding: 24 }}><Spinner label="Loading…" /></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/activities" replace />;
   return <>{children}</>;

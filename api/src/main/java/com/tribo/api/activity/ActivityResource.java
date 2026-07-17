@@ -64,7 +64,6 @@ public class ActivityResource {
     private static final ParticipationRepository PARTICIPANTS = new ParticipationRepository();
     private static final UserRepository USERS = new UserRepository();
 
-    private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 100;
 
     // --- B2-3: create --------------------------------------------------------
@@ -111,15 +110,24 @@ public class ActivityResource {
             @Context ContainerRequestContext ctx,
             @QueryParam("status") @DefaultValue("PUBLISHED") String statusParam,
             @QueryParam("limit") @DefaultValue("20") int limitParam,
-            @QueryParam("cursor") String cursor) {
+            @QueryParam("cursor") String cursor,
+            @QueryParam("q") String q,
+            @QueryParam("eventKind") String eventKindParam,
+            @QueryParam("minDistanceKm") Double minDistanceKm,
+            @QueryParam("maxDistanceKm") Double maxDistanceKm,
+            @QueryParam("nearLat") Double nearLat,
+            @QueryParam("nearLng") Double nearLng,
+            @QueryParam("radiusKm") Double radiusKm) {
 
         AuthenticatedUser caller = authUser(ctx);
         ActivityStatus status = parseStatusFilter(statusParam);
         int limit = Math.max(1, Math.min(limitParam, MAX_LIMIT));
-        if (limit == 0)
-            limit = DEFAULT_LIMIT;
+        EventKind eventKind = parseKindFilter(eventKindParam);
+        int offset = parseOffset(cursor);
 
-        ActivityPage page = ACTIVITIES.list(status, limit, cursor);
+        ActivityPage page = ACTIVITIES.search(
+                status, q, eventKind, minDistanceKm, maxDistanceKm,
+                nearLat, nearLng, radiusKm, limit, offset);
         List<Map<String, Object>> items = new ArrayList<>();
         for (Activity a : page.items())
             items.add(view(a, caller.userId()));
@@ -275,6 +283,28 @@ public class ActivityResource {
             return ActivityStatus.valueOf(s.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new ValidationException("Unknown status filter: " + s);
+        }
+    }
+
+    /** Optional event-kind filter; blank or "ALL" means no filter. */
+    private static EventKind parseKindFilter(String s) {
+        if (s == null || s.isBlank() || "ALL".equalsIgnoreCase(s))
+            return null;
+        try {
+            return EventKind.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown eventKind filter: " + s);
+        }
+    }
+
+    /** Offset-based paging cursor. Tolerates a stale/foreign cursor by restarting. */
+    private static int parseOffset(String cursor) {
+        if (cursor == null || cursor.isBlank())
+            return 0;
+        try {
+            return Math.max(0, Integer.parseInt(cursor.trim()));
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 

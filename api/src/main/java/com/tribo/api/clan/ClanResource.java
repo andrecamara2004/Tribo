@@ -79,7 +79,7 @@ public class ClanResource {
     private static final ActivityRepository ACTIVITIES = new ActivityRepository();
     private static final RankSnapshotRepository SNAPSHOTS = new RankSnapshotRepository();
 
-    private static final Set<String> METRICS = Set.of("avgPace", "distance", "consistency", "impact");
+    private static final Set<String> METRICS = Set.of("avgPace", "distance", "consistency", "impact", "quality");
     private static final Set<String> PERIODS = Set.of("all", "month", "week");
 
     private static final Pattern TAG = Pattern.compile("^[A-Z0-9]{2,5}$");
@@ -219,15 +219,30 @@ public class ClanResource {
             a.volPoints += p.role() == ParticipationRole.STAFF ? act.pointsStaff() : act.pointsParticipant();
         }
 
+        // Quality: how well-rated are the events a clan's members host. Averaged
+        // across every reviewed activity owned by a member, weighted by how many
+        // reviews each activity has.
+        for (Activity act : ACTIVITIES.listByRating()) {
+            if (act.reviewCount() <= 0)
+                continue;
+            String cid = userClan.get(act.ownerId());
+            if (cid == null)
+                continue;
+            Agg a = aggs.get(cid);
+            a.ratingWeightedSum += act.averageRating() * act.reviewCount();
+            a.reviewCount += act.reviewCount();
+        }
+
         List<RankRow> rows = new ArrayList<>();
         for (Clan c : clans) {
             Agg a = aggs.get(c.id());
             int memberCount = members.getOrDefault(c.id(), 0);
             Integer avgPace = a.meters > 0 ? (int) Math.round(a.seconds / (a.meters / 1000.0)) : null;
             int consistency = memberCount > 0 ? (int) Math.round(a.activeThisWeek.size() * 100.0 / memberCount) : 0;
+            Double qualityRating = a.reviewCount > 0 ? round1(a.ratingWeightedSum / a.reviewCount) : null;
             rows.add(new RankRow(c, memberCount,
                     round1(a.meters / 1000.0), round1(a.monthMeters / 1000.0), round1(a.weekMeters / 1000.0),
-                    avgPace, consistency, a.volPoints, a.volEvents));
+                    avgPace, consistency, a.volPoints, a.volEvents, qualityRating, a.reviewCount));
         }
 
         rows.sort(comparatorFor(metric, period));
@@ -259,6 +274,9 @@ public class ClanResource {
             case "distance" -> Comparator.comparingDouble((RankRow r) -> r.distanceFor(period)).reversed();
             case "consistency" -> Comparator.comparingInt((RankRow r) -> r.consistencyPct).reversed();
             case "impact" -> Comparator.comparingLong((RankRow r) -> r.volunteerPoints).reversed();
+            // quality: highest average rating first; clans with no reviews sort last.
+            case "quality" -> Comparator.comparingDouble(
+                    (RankRow r) -> r.qualityRating == null ? -1.0 : r.qualityRating).reversed();
             // avgPace: faster first; clans with no runs (null) sort last.
             default -> Comparator.comparingInt(r -> r.avgPaceSecPerKm == null ? Integer.MAX_VALUE : r.avgPaceSecPerKm);
         };
@@ -284,12 +302,15 @@ public class ClanResource {
         double monthMeters;
         long volPoints;
         int volEvents;
+        double ratingWeightedSum;
+        long reviewCount;
         final Set<String> activeThisWeek = new HashSet<>();
     }
 
     /** A computed, not-yet-ranked clan row. */
     private record RankRow(Clan clan, int members, double totalKm, double monthlyKm, double weeklyKm,
-            Integer avgPaceSecPerKm, int consistencyPct, long volunteerPoints, int volunteerEvents) {
+            Integer avgPaceSecPerKm, int consistencyPct, long volunteerPoints, int volunteerEvents,
+            Double qualityRating, long reviewCount) {
         double distanceFor(String period) {
             return switch (period) {
                 case "week" -> weeklyKm;
@@ -314,6 +335,8 @@ public class ClanResource {
             m.put("consistencyPct", consistencyPct);
             m.put("volunteerPoints", volunteerPoints);
             m.put("volunteerEvents", volunteerEvents);
+            m.put("qualityRating", qualityRating);
+            m.put("reviewCount", reviewCount);
             m.put("trend", trend);
             return m;
         }

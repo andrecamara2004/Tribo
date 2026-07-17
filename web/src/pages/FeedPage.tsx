@@ -8,6 +8,7 @@ import {
 } from "../api/feed";
 import { useAuth } from "../auth/AuthContext";
 import { Shell } from "../components/Shell";
+import { Spinner } from "../components/Spinner";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { RouteMap } from "../components/RouteMap";
@@ -79,7 +80,7 @@ export function FeedPage() {
         </div>
       </div>
 
-      {loading && <p className="state-msg">Loading feed…</p>}
+      {loading && <Spinner label="Loading feed…" />}
       {!loading && items.length === 0 && (
         <p className="state-msg">
           Nothing here yet. Log a run or join a volunteer event to start the feed.

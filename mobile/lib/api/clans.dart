@@ -62,6 +62,8 @@ class ClanRankRow {
   final int consistencyPct;
   final int volunteerPoints;
   final int volunteerEvents;
+  final double? qualityRating;
+  final int reviewCount;
   final String trend; // up | down | flat
 
   const ClanRankRow({
@@ -79,6 +81,8 @@ class ClanRankRow {
     required this.consistencyPct,
     required this.volunteerPoints,
     required this.volunteerEvents,
+    this.qualityRating,
+    this.reviewCount = 0,
     required this.trend,
   });
 
@@ -97,6 +101,8 @@ class ClanRankRow {
         consistencyPct: (j['consistencyPct'] as num?)?.toInt() ?? 0,
         volunteerPoints: (j['volunteerPoints'] as num?)?.toInt() ?? 0,
         volunteerEvents: (j['volunteerEvents'] as num?)?.toInt() ?? 0,
+        qualityRating: (j['qualityRating'] as num?)?.toDouble(),
+        reviewCount: (j['reviewCount'] as num?)?.toInt() ?? 0,
         trend: (j['trend'] ?? 'flat') as String,
       );
 

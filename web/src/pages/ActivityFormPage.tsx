@@ -12,6 +12,7 @@ import {
 } from "../api/activities";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
+import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
 import { LocationPicker } from "../components/MapView";
 
@@ -144,7 +145,7 @@ export function ActivityFormPage() {
   if (loading)
     return (
       <Shell>
-        <p className="state-msg">Loading…</p>
+        <Spinner label="Loading…" />
       </Shell>
     );
 

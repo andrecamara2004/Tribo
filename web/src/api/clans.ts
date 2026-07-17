@@ -88,7 +88,7 @@ export async function leaveClan(): Promise<void> {
   await apiFetch("/clans/leave", { method: "POST" });
 }
 
-export type RankMetric = "avgPace" | "distance" | "consistency" | "impact";
+export type RankMetric = "avgPace" | "distance" | "consistency" | "impact" | "quality";
 export type RankPeriod = "all" | "month" | "week";
 
 export interface ClanRankRow {
@@ -106,6 +106,8 @@ export interface ClanRankRow {
   consistencyPct: number;
   volunteerPoints: number;
   volunteerEvents: number;
+  qualityRating: number | null;
+  reviewCount: number;
   trend: string;
 }
 

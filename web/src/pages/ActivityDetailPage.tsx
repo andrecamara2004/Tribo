@@ -16,6 +16,7 @@ import {
 } from "../api/activities";
 import { ApiError } from "../api/http";
 import { Shell } from "../components/Shell";
+import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
 import { Avatar } from "../components/Avatar";
 import { LocationMap } from "../components/MapView";
@@ -135,7 +136,7 @@ export function ActivityDetailPage() {
   if (loading)
     return (
       <Shell>
-        <p className="state-msg">Loading…</p>
+        <Spinner label="Loading…" />
       </Shell>
     );
   if (error && !activity)

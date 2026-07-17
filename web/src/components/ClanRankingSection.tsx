@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { getRanking, type ClanRankRow, type RankMetric, type RankPeriod } from "../api/clans";
 import { formatPace } from "../lib/run";
 import { Avatar } from "./Avatar";
+import { Spinner } from "./Spinner";
 
 const METRICS: { id: RankMetric; label: string }[] = [
   { id: "avgPace", label: "Avg pace" },
   { id: "distance", label: "Distance" },
   { id: "consistency", label: "Consistency" },
   { id: "impact", label: "Impact" },
+  { id: "quality", label: "Quality" },
 ];
 const PERIODS: { id: RankPeriod; label: string }[] = [
   { id: "all", label: "All-time" },
@@ -28,6 +30,7 @@ function headline(c: ClanRankRow, metric: RankMetric, period: RankPeriod): { val
     case "distance": return { value: distanceFor(c, period).toFixed(0), unit: "km" };
     case "consistency": return { value: String(c.consistencyPct), unit: "%" };
     case "impact": return { value: c.volunteerPoints.toLocaleString(), unit: "pts" };
+    case "quality": return { value: c.qualityRating != null ? c.qualityRating.toFixed(1) : "—", unit: "★" };
     default: return { value: formatPace(c.avgPaceSecPerKm), unit: "/km" };
   }
 }
@@ -92,7 +95,7 @@ export function ClanRankingSection({ myClanId, onClanClick }: { myClanId: string
         </div>
       </div>
 
-      {loading && <p className="state-msg">Loading rankings…</p>}
+      {loading && <Spinner label="Loading rankings…" />}
       {!loading && clans.length === 0 && <p className="state-msg">No clans yet. Create one above.</p>}
 
       {clans.length > 0 && (

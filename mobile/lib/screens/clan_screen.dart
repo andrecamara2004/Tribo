@@ -25,6 +25,7 @@ const _metrics = [
   ('distance', 'Distance'),
   ('consistency', 'Consistency'),
   ('impact', 'Impact'),
+  ('quality', 'Quality'),
 ];
 const _periods = [('all', 'All-time'), ('month', 'This month'), ('week', 'This week')];
 
@@ -592,6 +593,10 @@ class _ClanScreenState extends State<ClanScreen> with SingleTickerProviderStateM
         return '${r.consistencyPct}%';
       case 'impact':
         return '${r.volunteerPoints} pts';
+      case 'quality':
+        return r.qualityRating != null
+            ? '★ ${r.qualityRating!.toStringAsFixed(1)}'
+            : '★ —';
       default:
         return '${_formatPace(r.avgPaceSecPerKm)}/km';
     }

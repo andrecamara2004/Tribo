@@ -17,6 +17,18 @@ export interface MapPoint {
   location: string;
   latitude: number;
   longitude: number;
+  eventKind?: "RUN" | "VOLUNTEER";
+}
+
+// Google's hosted marker sprites — colour the pin by activity type so runs and
+// volunteer events are distinguishable at a glance.
+const MARKER_ICON: Record<string, string> = {
+  VOLUNTEER: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+  RUN: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+};
+
+function markerIcon(kind?: string): string | undefined {
+  return kind ? MARKER_ICON[kind] : undefined;
 }
 
 function Placeholder({ note }: { note: string }) {
@@ -109,7 +121,12 @@ function ActivitiesMapImpl({
       options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
     >
       {points.map((p) => (
-        <MarkerF key={p.id} position={{ lat: p.latitude, lng: p.longitude }} onClick={() => onSelect(p.id)} />
+        <MarkerF
+          key={p.id}
+          position={{ lat: p.latitude, lng: p.longitude }}
+          icon={markerIcon(p.eventKind)}
+          onClick={() => onSelect(p.id)}
+        />
       ))}
       {selected && (
         <InfoWindowF

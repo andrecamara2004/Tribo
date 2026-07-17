@@ -13,6 +13,7 @@ import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -120,6 +121,111 @@ public class ActivityRepository {
                 next = after.toUrlSafe();
         }
         return new ActivityPage(items, next);
+    }
+
+    /**
+     * Search + filter within a status. Unlike {@link #list}, this supports a
+     * free-text query, an event-kind filter and a distance range. Because those
+     * criteria would each need composite Datastore indexes (and text search has
+     * no native support), we load the status-matched set — which only needs the
+     * automatic single-property index — and filter/sort/page in memory. Fine for
+     * the catalog sizes this app deals with; the same trade-off {@link
+     * #listByRating} already makes.
+     *
+     * Paging is offset-based: {@code cursor} is the integer offset of the next
+     * page (as a string), or null at the end. Results are ordered by soonest
+     * start time so paging is deterministic.
+     *
+     * @param status        if non-null, only activities in this status
+     * @param q             case-insensitive substring matched against title,
+     *                      description, location, host, category and tags; null/blank ignored
+     * @param eventKind     if non-null, only activities of this kind
+     * @param minDistanceKm if non-null, only activities with distanceKm >= this
+     * @param maxDistanceKm if non-null, only activities with distanceKm <= this
+     * @param nearLat       with nearLng, filters to activities within radiusKm of
+     *                      this point (activities without a pin are excluded);
+     *                      results are then ordered nearest-first
+     * @param nearLng       see nearLat
+     * @param radiusKm      proximity radius in km (defaults to 25 when a point is
+     *                      given without one)
+     * @param limit         max items in the page
+     * @param offset        number of matching items to skip (0 for the first page)
+     */
+    public ActivityPage search(ActivityStatus status, String q, EventKind eventKind,
+            Double minDistanceKm, Double maxDistanceKm,
+            Double nearLat, Double nearLng, Double radiusKm, int limit, int offset) {
+        var qb = Query.newEntityQueryBuilder().setKind(KIND);
+        if (status != null) {
+            qb.setFilter(PropertyFilter.eq("status", status.name()));
+        }
+
+        QueryResults<Entity> results = DATASTORE.run(qb.build());
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        boolean near = nearLat != null && nearLng != null;
+        double radius = radiusKm != null ? radiusKm : 25.0;
+
+        List<Activity> matched = new ArrayList<>();
+        while (results.hasNext()) {
+            Activity a = toActivity(results.next());
+            if (eventKind != null && a.eventKind() != eventKind)
+                continue;
+            if (minDistanceKm != null && a.distanceKm() < minDistanceKm)
+                continue;
+            if (maxDistanceKm != null && a.distanceKm() > maxDistanceKm)
+                continue;
+            if (!needle.isEmpty() && !matchesText(a, needle))
+                continue;
+            if (near) {
+                if (a.latitude() == null || a.longitude() == null)
+                    continue;
+                if (haversineKm(nearLat, nearLng, a.latitude(), a.longitude()) > radius)
+                    continue;
+            }
+            matched.add(a);
+        }
+        // Nearest-first when a point is given; otherwise soonest-starting first.
+        if (near) {
+            matched.sort(Comparator.comparingDouble(
+                    a -> haversineKm(nearLat, nearLng, a.latitude(), a.longitude())));
+        } else {
+            matched.sort(Comparator.comparing(Activity::startsAt));
+        }
+
+        int from = Math.max(0, Math.min(offset, matched.size()));
+        int to = Math.min(from + limit, matched.size());
+        List<Activity> items = new ArrayList<>(matched.subList(from, to));
+        String next = to < matched.size() ? String.valueOf(to) : null;
+        return new ActivityPage(items, next);
+    }
+
+    /** Great-circle distance in kilometres between two lat/lng points. */
+    private static double haversineKm(double lat1, double lng1, double lat2, double lng2) {
+        final double earthRadiusKm = 6371.0088;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private static boolean matchesText(Activity a, String needle) {
+        if (containsIgnoreCase(a.title(), needle)
+                || containsIgnoreCase(a.description(), needle)
+                || containsIgnoreCase(a.location(), needle)
+                || containsIgnoreCase(a.host(), needle)
+                || containsIgnoreCase(a.category(), needle)) {
+            return true;
+        }
+        for (String t : a.tags()) {
+            if (containsIgnoreCase(t, needle))
+                return true;
+        }
+        return false;
+    }
+
+    private static boolean containsIgnoreCase(String haystack, String lowerNeedle) {
+        return haystack != null && haystack.toLowerCase().contains(lowerNeedle);
     }
 
     // --- internal mapping ----------------------------------------------------
