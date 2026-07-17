@@ -1,8 +1,6 @@
 package com.tribo.api.iam;
 
-import jakarta.mail.Authenticator;
 import jakarta.mail.Message;
-import jakarta.mail.PasswordAuthentication;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
@@ -77,23 +75,26 @@ public class EmailSender {
             return;
         }
 
-        try {
-            final String user = smtpUser();
-            final String pass = smtpPass();
-            final String from = envOr("MAIL_FROM", user);
+        final String user = smtpUser();
+        final String pass = smtpPass();
+        final String from = envOr("MAIL_FROM", user);
 
+        // Jakarta Mail loads its provider registry via the thread-context
+        // classloader. On Jetty/App Engine that CL doesn't see the webapp's
+        // angus-mail, so the default transport lookup fails
+        // (NoSuchProviderException). Pin the app classloader and request the
+        // "smtp" transport explicitly to make provider resolution deterministic.
+        final ClassLoader prev = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(EmailSender.class.getClassLoader());
+        try {
             Properties props = new Properties();
+            props.put("mail.transport.protocol", "smtp");
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.host", HOST);
             props.put("mail.smtp.port", PORT);
 
-            Session session = Session.getInstance(props, new Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(user, pass);
-                }
-            });
+            Session session = Session.getInstance(props);
 
             MimeMessage msg = new MimeMessage(session);
             msg.setFrom(new InternetAddress(from, "Tribo"));
@@ -101,10 +102,15 @@ public class EmailSender {
             msg.setSubject("Confirm your Tribo account");
             msg.setContent(body(link), "text/html; charset=utf-8");
 
-            Transport.send(msg);
+            try (Transport transport = session.getTransport("smtp")) {
+                transport.connect(HOST, Integer.parseInt(PORT), user, pass);
+                transport.sendMessage(msg, msg.getAllRecipients());
+            }
             LOG.info("Verification email sent to " + toEmail);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Failed to send verification email to " + toEmail, e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prev);
         }
     }
 
