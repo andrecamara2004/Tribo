@@ -133,6 +133,16 @@ class AuthApi {
         'If that account exists and is unverified, a new link has been sent.';
   }
 
+  /// POST /auth/reset-password-request — Request a password reset link.
+  Future<String> requestPasswordReset(String email) async {
+    final data = await _client.post(
+      '/auth/reset-password-request',
+      skipAuth: true,
+      body: {'email': email},
+    ) as Map<String, dynamic>?;
+    return (data?['message'] as String?) ?? 'A password reset link has been sent.';
+  }
+
   /// GET /auth/password-policy — the current DB-backed password rules.
   Future<PasswordPolicy> getPasswordPolicy() async {
     try {
