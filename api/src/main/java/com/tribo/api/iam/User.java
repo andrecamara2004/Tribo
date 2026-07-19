@@ -38,4 +38,11 @@ public record User(
         PUBLIC,
         PRIVATE
     }
+
+    public String displayName() {
+        if (fullName != null && !fullName.isBlank()) {
+            return fullName;
+        }
+        return email;
+    }
 }

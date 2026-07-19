@@ -246,7 +246,7 @@ export function ActivitiesPage() {
               </div>
             </div>
 
-            {/* ⭐ Review Code */}
+            {/* Review Code */}
             <div
               style={{
                 marginTop: 10,
