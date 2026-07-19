@@ -33,8 +33,8 @@ public record User(
         String clanId, // the clan the user belongs to, or null if none (D-3)
         double weeklyGoalKm, // per-user weekly distance goal; 0 = none (Phase 6)
         String pictureUrl, // public URL of the user's profile picture, or null
-        boolean emailVerified // true once the user confirms their email (login gate)
-) {
+        boolean emailVerified, // true once the user confirms their email (login gate)
+        ThemePreference themePreference) {
     /** Age in whole years derived from {@link #birthDate}, or 0 if unknown. */
     public int age() {
         if (birthDate == null || birthDate.isBlank()) {
@@ -50,7 +50,10 @@ public record User(
     }
 
     public enum ProfileVisibility {
-        PUBLIC,
-        PRIVATE
+        PUBLIC, PRIVATE
+    }
+
+    public enum ThemePreference {
+        LIGHT, DARK
     }
 }

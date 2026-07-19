@@ -169,4 +169,14 @@ class AuthApi {
       role: data['role'] as String,
     );
   }
+
+  /// POST /auth/reset-password-request — Request a password reset link.
+  Future<String> requestPasswordReset(String email) async {
+    final res = await _client.post(
+      '/auth/reset-password-request',
+      skipAuth: true,
+      body: {'email': email},
+    ) as Map<String, dynamic>?;
+    return res?['message'] as String? ?? 'If that account exists, a password reset link has been sent.';
+  }
 }

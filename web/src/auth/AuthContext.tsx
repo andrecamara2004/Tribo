@@ -27,11 +27,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // the profile is display-only, so a failure here never blocks the session.
   async function loadProfile() {
     try {
-      setProfile(await getMe());
+      const p = await getMe();
+      setProfile(p);
+      // Apply theme
+      if (p.themePreference) {
+        localStorage.setItem("theme", p.themePreference);
+        if (p.themePreference === "DARK") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          document.documentElement.removeAttribute("data-theme");
+        }
+      }
     } catch {
       setProfile(null);
     }
   }
+
+  // Restore theme on boot from localStorage (even before profile loads or if logged out)
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "DARK") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+  }, []);
 
   // On load: if a refresh token persisted, re-establish the session. We mint a
   // fresh access token FIRST (from the persisted refresh token), then whoami()
