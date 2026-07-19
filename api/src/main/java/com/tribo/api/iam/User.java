@@ -56,4 +56,11 @@ public record User(
     public enum ThemePreference {
         LIGHT, DARK
     }
+
+    public String displayName() {
+        if (fullName != null && !fullName.isBlank()) {
+            return fullName;
+        }
+        return email;
+    }
 }
