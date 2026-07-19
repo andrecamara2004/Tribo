@@ -69,4 +69,6 @@ class AuthController extends ChangeNotifier {
   Future<String> resendVerification(String email) => _authApi.resendVerification(email);
 
   Future<String> verifyEmail(String token) => _authApi.verifyEmail(token);
+
+  Future<String> requestPasswordReset(String email) => _authApi.requestPasswordReset(email);
 }

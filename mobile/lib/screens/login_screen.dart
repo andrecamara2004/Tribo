@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/http.dart';
 import '../auth/auth_scope.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 /// M-3 — Login screen. Mirrors the web LoginPage.
 class LoginScreen extends StatefulWidget {
@@ -146,6 +147,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Text(_busy ? 'Logging in…' : 'Log in'),
                     ),
+                  ),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                    child: const Text('Forgot your password?'),
                   ),
                   const SizedBox(height: 4),
                   TextButton(
