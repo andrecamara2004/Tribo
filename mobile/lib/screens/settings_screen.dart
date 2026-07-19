@@ -100,6 +100,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _toggleTheme(bool isDark) async {
+    final mode = isDark ? ThemeMode.dark : ThemeMode.light;
+    AuthScope.of(context).updateTheme(mode);
+
+    try {
+      final me = await ServicesScope.of(context).users.setTheme(isDark ? 'DARK' : 'LIGHT');
+      if (mounted) setState(() => _me = me);
+    } catch (_) {
+      // Background sync failed, ignore
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPrivate = _me?.profileVisibility == 'PRIVATE';
@@ -163,6 +175,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                // --- appearance ---
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Appearance',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(AuthScope.of(context).themeMode == ThemeMode.dark ? 'Dark mode' : 'Light mode'),
+                          value: AuthScope.of(context).themeMode == ThemeMode.dark,
+                          onChanged: _toggleTheme,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
                 // --- account privacy ---
                 Card(
@@ -174,10 +206,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Text('Account privacy',
                             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'When private, other members see “Private user” instead of your '
                           'name and photo in clan rosters and the feed.',
-                          style: TextStyle(fontSize: 13, color: Colors.black54),
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.outline),
                         ),
                         const SizedBox(height: 6),
                         SwitchListTile(
