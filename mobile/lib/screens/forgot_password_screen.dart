@@ -99,9 +99,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 enabled: !_loading,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
+              FilledButton(
                 onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: _loading

@@ -43,11 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Restore theme on boot from localStorage (even before profile loads or if logged out)
+  // Restore theme on boot from localStorage ONLY if we have a session
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved === "DARK") {
-      document.documentElement.setAttribute("data-theme", "dark");
+    if (hasPersistedSession()) {
+      const saved = localStorage.getItem("theme");
+      if (saved === "DARK") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
     } else {
       document.documentElement.removeAttribute("data-theme");
     }
@@ -59,8 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // (though recoverable) 401. If the refresh fails, whoami still triggers
   // apiFetch's reactive refresh as a fallback.
   useEffect(() => {
-    let cancelled = false;
-    async function bootstrap() {
+    async function boot() {
       if (!hasPersistedSession()) {
         setLoading(false);
         return;
@@ -68,23 +69,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await refreshAccessToken();
         const me = await authApi.whoami();
-        if (cancelled) return;
         setUser(me);
-        await loadProfile();
+        loadProfile(); // best-effort load
       } catch {
-        if (!cancelled) setUser(null); // refresh failed → not logged in
+        setUser(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     }
-    bootstrap();
-    return () => {
-      cancelled = true;
-    };
+    boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function login(email: string, password: string) {
-    setUser(await authApi.login(email, password));
+  async function login(email: string, pass: string) {
+    const me = await authApi.login(email, pass);
+    setUser(me);
     await loadProfile();
   }
 
@@ -98,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.logout();
     setUser(null);
     setProfile(null);
+    localStorage.removeItem("theme");
+    document.documentElement.removeAttribute("data-theme");
   }
 
   return (

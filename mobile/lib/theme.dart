@@ -14,6 +14,14 @@ const triboBg = Color(0xFFF4F8F5); // --bg
 const triboWarnBg = Color(0xFFFFF3CD);
 const triboWarnFg = Color(0xFF8A6D00);
 
+// Dark mode colors
+const triboInkDark = Color(0xFFFFFFFF);
+const triboMutedDark = Color(0xFF888888);
+const triboLineDark = Color(0xFF333333);
+const triboBgDark = Color(0xFF121212);
+const triboCardDark = Color(0xFF1E1E1E);
+const triboGreenSoftDark = Color(0xFF062816);
+
 ThemeData triboTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: triboGreen,
@@ -130,5 +138,123 @@ ThemeData triboTheme() {
     ),
 
     dividerTheme: const DividerThemeData(color: triboLine, thickness: 1, space: 1),
+  );
+}
+
+ThemeData triboThemeDark() {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: triboGreen,
+    brightness: Brightness.dark,
+  ).copyWith(
+    primary: triboGreen,
+    onPrimary: Colors.white,
+    surface: triboCardDark,
+    onSurface: triboInkDark,
+    outline: triboMutedDark,
+    outlineVariant: triboLineDark,
+  );
+
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: triboBgDark,
+    splashFactory: InkRipple.splashFactory,
+
+    appBarTheme: const AppBarTheme(
+      backgroundColor: triboBgDark,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: triboInkDark,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: triboInkDark,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+    ),
+
+    cardTheme: const CardThemeData(
+      color: triboCardDark,
+      surfaceTintColor: triboCardDark,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+        side: BorderSide(color: triboLineDark),
+      ),
+    ),
+
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: triboCardDark,
+      surfaceTintColor: triboCardDark,
+      indicatorColor: triboGreenSoftDark,
+      elevation: 2,
+      height: 64,
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontSize: 12,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w600
+              : FontWeight.w500,
+          color: states.contains(WidgetState.selected) ? triboGreen : triboMutedDark,
+        ),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected) ? triboGreen : triboMutedDark,
+        ),
+      ),
+    ),
+
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: triboGreen,
+        foregroundColor: Colors.white,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      ),
+    ),
+
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: triboGreen,
+        side: const BorderSide(color: triboLineDark),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      ),
+    ),
+
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: triboGreen),
+    ),
+
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: triboCardDark,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: triboLineDark),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: triboLineDark),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: triboGreen, width: 2),
+      ),
+      labelStyle: const TextStyle(color: triboMutedDark),
+      hintStyle: const TextStyle(color: triboLineDark),
+    ),
+
+    dividerTheme: const DividerThemeData(
+      color: triboLineDark,
+      thickness: 1,
+      space: 1,
+    ),
   );
 }

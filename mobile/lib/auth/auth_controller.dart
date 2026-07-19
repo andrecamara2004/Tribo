@@ -4,7 +4,7 @@
 /// user, exposes login/register/logout, and bootstraps a session on launch.
 library;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../api/auth.dart';
 import '../api/token_store.dart';
@@ -21,15 +21,24 @@ class AuthController extends ChangeNotifier {
 
   CurrentUser? _user;
   bool _loading = true; // true during the initial session bootstrap
+  ThemeMode _themeMode = ThemeMode.light;
 
   CurrentUser? get user => _user;
   bool get loading => _loading;
   bool get isAuthenticated => _user != null;
+  ThemeMode get themeMode => isAuthenticated ? _themeMode : ThemeMode.light;
 
   /// On launch: if a refresh token persisted, try to re-establish the session.
   /// whoami() will refresh-on-401 if the stored access token is stale, so this
   /// transparently restores a logged-in session across cold starts.
   Future<void> bootstrap() async {
+    final themePref = await _tokens.getThemePreference();
+    if (themePref == 'DARK') {
+      _themeMode = ThemeMode.dark;
+    } else {
+      _themeMode = ThemeMode.light;
+    }
+
     try {
       if (!await _tokens.hasPersistedSession()) {
         _user = null;
@@ -59,6 +68,13 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     await _authApi.logout();
     _user = null;
+    notifyListeners();
+  }
+
+  Future<void> updateTheme(ThemeMode mode) async {
+    _themeMode = mode;
+    final prefStr = mode == ThemeMode.dark ? 'DARK' : 'LIGHT';
+    await _tokens.setThemePreference(prefStr);
     notifyListeners();
   }
 
