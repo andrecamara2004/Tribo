@@ -37,6 +37,7 @@ export interface Me {
   volunteerPoints: number; // credited total (derived)
   weeklyGoalKm: number; // per-user weekly distance goal; 0 = none
   achievements: Achievement[];
+  themePreference?: "LIGHT" | "DARK";
 }
 
 /** GET /users/me — full profile of the signed-in user. */
@@ -91,5 +92,15 @@ export async function setVisibility(visibility: "PUBLIC" | "PRIVATE"): Promise<M
     body: JSON.stringify({ visibility }),
   });
   if (!me) throw new Error("Set visibility returned no body.");
+  return me;
+}
+
+/** PUT /users/me/theme — set UI theme preference. */
+export async function setTheme(theme: "LIGHT" | "DARK"): Promise<Me> {
+  const me = await apiFetch<Me>("/users/me/theme", {
+    method: "PUT",
+    body: JSON.stringify({ theme }),
+  });
+  if (!me) throw new Error("Set theme returned no body.");
   return me;
 }

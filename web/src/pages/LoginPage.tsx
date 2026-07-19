@@ -114,14 +114,18 @@ export function LoginPage() {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+          <button type="submit" disabled={busy} className="btn btn-primary btn-block">
+            {busy ? "Signing in..." : "Sign in"}
           </button>
-        </form>
 
-        <p className="login-footer">
-          New to Tribo? <Link to="/register">Create your account →</Link>
-        </p>
+          <p className="login-footer" style={{ marginTop: "1rem", textAlign: "center" }}>
+            <Link to="/forgot-password" style={{ fontSize: "0.9rem" }}>Forgot your password?</Link>
+          </p>
+
+          <p className="login-footer">
+            New to Tribo? <Link to="/register">Create your account</Link>
+          </p>
+        </form>
       </section>
     </div>
   );

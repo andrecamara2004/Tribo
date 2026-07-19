@@ -29,6 +29,24 @@ function isRealDate(y: number, m: number, d: number): boolean {
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 }
 
+/** Formats a phone number */
+function formatPhone(val: string): string {
+  // Only keep digits and the plus sign
+  const raw = val.replace(/[^\d+]/g, "");
+
+  if (raw.startsWith("+351")) {
+    const rest = raw.substring(4);
+    const groups = rest.match(/\d{1,3}/g) || [];
+    return groups.length > 0 ? `+351 ${groups.join(" ")}` : raw;
+  } else if (raw.startsWith("+")) {
+    return raw; // Keep other country codes as is
+  }
+
+  // Format as groups of 3 digits
+  const groups = raw.match(/\d{1,3}/g) || [];
+  return groups.join(" ");
+}
+
 export function RegisterPage() {
   const { register } = useAuth();
   const [form, setForm] = useState({
@@ -142,81 +160,81 @@ export function RegisterPage() {
           </div>
         ) : (
           <>
-        <h2>Create your account</h2>
-        <p className="subtitle">It takes less than a minute</p>
+            <h2>Create your account</h2>
+            <p className="subtitle">It takes less than a minute</p>
 
-        <form onSubmit={onSubmit}>
-          <div className="field">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" value={form.email}
-              onChange={(e) => update("email", e.target.value)} required autoComplete="email" />
-          </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input id="password" type="password" value={form.password}
-              onChange={(e) => update("password", e.target.value)} required
-              autoComplete="new-password"
-              placeholder={`At least ${policy?.minLength ?? 8} characters`} />
-            {policy && policy.rules.length > 0 && (
-              <div className="hint">Must contain: {policy.rules.join(" · ")}</div>
-            )}
-          </div>
-          <div className="field">
-            <label htmlFor="fullName">Full name</label>
-            <input id="fullName" type="text" value={form.fullName}
-              onChange={(e) => update("fullName", e.target.value)} required autoComplete="name" />
-          </div>
-          <div className="field">
-            <label htmlFor="phone">Phone</label>
-            <input id="phone" type="tel" value={form.phoneNumber}
-              onChange={(e) => update("phoneNumber", e.target.value)} required
-              placeholder="+351…" autoComplete="tel" />
-          </div>
-          <div className="field">
-            <label>Date of birth</label>
-            <div className="dob-row">
-              <select value={form.birthDay} onChange={(e) => update("birthDay", e.target.value)}
-                required aria-label="Day">
-                <option value="">Day</option>
-                {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select value={form.birthMonth} onChange={(e) => update("birthMonth", e.target.value)}
-                required aria-label="Month">
-                <option value="">Month</option>
-                {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
-              </select>
-              <select value={form.birthYear} onChange={(e) => update("birthYear", e.target.value)}
-                required aria-label="Year">
-                <option value="">Year</option>
-                {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="role">Account type</label>
-            <select id="role" value={form.role} onChange={(e) => update("role", e.target.value)}>
-              <option value="END_USER">Participant (browse &amp; join)</option>
-              <option value="ACTIVITY_MANAGER">Activity manager (create activities)</option>
-              <option value="PARTNER">Partner (organisation)</option>
-            </select>
-            {form.role !== "END_USER" && (
-              <div className="hint warn">
-                Manager / partner accounts need backoffice verification before they can
-                create activities.
+            <form onSubmit={onSubmit}>
+              <div className="field">
+                <label htmlFor="email">Email</label>
+                <input id="email" type="email" value={form.email}
+                  onChange={(e) => update("email", e.target.value)} required autoComplete="email" />
               </div>
-            )}
-          </div>
+              <div className="field">
+                <label htmlFor="password">Password</label>
+                <input id="password" type="password" value={form.password}
+                  onChange={(e) => update("password", e.target.value)} required
+                  autoComplete="new-password"
+                  placeholder={`At least ${policy?.minLength ?? 8} characters`} />
+                {policy && policy.rules.length > 0 && (
+                  <div className="hint">Must contain: {policy.rules.join(" · ")}</div>
+                )}
+              </div>
+              <div className="field">
+                <label htmlFor="fullName">Full name</label>
+                <input id="fullName" type="text" value={form.fullName}
+                  onChange={(e) => update("fullName", e.target.value)} required autoComplete="name" />
+              </div>
+              <div className="field">
+                <label htmlFor="phone">Phone</label>
+                <input id="phone" type="tel" value={form.phoneNumber}
+                  onChange={(e) => update("phoneNumber", formatPhone(e.target.value))} required
+                  placeholder="+351…" autoComplete="tel" />
+              </div>
+              <div className="field">
+                <label>Date of birth</label>
+                <div className="dob-row">
+                  <select value={form.birthDay} onChange={(e) => update("birthDay", e.target.value)}
+                    required aria-label="Day">
+                    <option value="">Day</option>
+                    {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select value={form.birthMonth} onChange={(e) => update("birthMonth", e.target.value)}
+                    required aria-label="Month">
+                    <option value="">Month</option>
+                    {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                  </select>
+                  <select value={form.birthYear} onChange={(e) => update("birthYear", e.target.value)}
+                    required aria-label="Year">
+                    <option value="">Year</option>
+                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="role">Account type</label>
+                <select id="role" value={form.role} onChange={(e) => update("role", e.target.value)}>
+                  <option value="END_USER">Participant (browse &amp; join)</option>
+                  <option value="ACTIVITY_MANAGER">Activity manager (create activities)</option>
+                  <option value="PARTNER">Partner (organisation)</option>
+                </select>
+                {form.role !== "END_USER" && (
+                  <div className="hint warn">
+                    Manager / partner accounts need backoffice verification before they can
+                    create activities.
+                  </div>
+                )}
+              </div>
 
-          {error && <p className="form-error">{error}</p>}
+              {error && <p className="form-error">{error}</p>}
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? "Creating…" : "Create account"}
-          </button>
-        </form>
+              <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+                {busy ? "Creating…" : "Create account"}
+              </button>
+            </form>
 
-        <p className="login-footer">
-          Have an account? <Link to="/login">Sign in →</Link>
-        </p>
+            <p className="login-footer">
+              Have an account? <Link to="/login">Sign in →</Link>
+            </p>
           </>
         )}
       </section>
