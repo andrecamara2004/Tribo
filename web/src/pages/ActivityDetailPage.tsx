@@ -359,7 +359,7 @@ export function ActivityDetailPage() {
                       justifyContent: "space-between",
                     }}
                   >
-                    <strong>{review.userId}</strong>
+                    <strong>{review.userName}</strong>
 
                     <span>
                       {"⭐".repeat(review.rating)}
