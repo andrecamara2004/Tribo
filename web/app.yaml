@@ -5,10 +5,11 @@ automatic_scaling:
   max_instances: 2
 
 handlers:
-  # Serve hashed asset files (JS/CSS/images) directly from dist/assets.
+  # Hashed asset files are immutable (name changes per build) — cache hard.
   - url: /assets
     static_dir: dist/assets
     secure: always
+    expiration: "365d"
 
   # Serve any other real file at the root (favicon, vite.svg, etc.).
   - url: /(.*\.(ico|png|svg|txt|json|webmanifest))$
@@ -17,7 +18,10 @@ handlers:
     secure: always
 
   # SPA catch-all: every other path serves index.html so React Router works.
+  # expiration 0 → App Engine sends no-cache, so a new deploy is picked up
+  # immediately (the shell references freshly-hashed JS/CSS, cached forever above).
   - url: /.*
     static_files: dist/index.html
     upload: dist/index.html
     secure: always
+    expiration: "0s"

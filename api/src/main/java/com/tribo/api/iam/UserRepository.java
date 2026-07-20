@@ -145,13 +145,22 @@ public class UserRepository {
      * year), so age derivation still works for pre-existing accounts.
      */
     private static String birthDateOf(Entity e) {
-        if (e.contains("birthDate")) {
-            return e.getString("birthDate");
-        }
-        if (e.contains("age")) {
-            long age = e.getLong("age");
-            return java.time.LocalDate.now(java.time.ZoneOffset.UTC)
-                    .minusYears(age).withDayOfYear(1).toString();
+        // Defensive: a bad/odd legacy value must never throw — this runs on every
+        // user read, including login.
+        try {
+            if (e.contains("birthDate")) {
+                String bd = e.getString("birthDate");
+                if (bd != null && !bd.isBlank()) {
+                    return bd;
+                }
+            }
+            if (e.contains("age")) {
+                long age = e.getLong("age");
+                return java.time.LocalDate.now(java.time.ZoneOffset.UTC)
+                        .minusYears(age).withDayOfYear(1).toString();
+            }
+        } catch (Exception ex) {
+            // fall through to empty
         }
         return "";
     }
