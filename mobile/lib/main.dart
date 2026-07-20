@@ -75,10 +75,17 @@ class TriboApp extends StatelessWidget {
       runs: runs,
       child: AuthScope(
         controller: controller,
-        child: MaterialApp(
-          title: 'Tribo',
-          theme: triboTheme(),
-          home: const AuthGate(),
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            return MaterialApp(
+              title: 'Tribo',
+              theme: triboTheme(),
+              darkTheme: triboThemeDark(),
+              themeMode: controller.themeMode,
+              home: const AuthGate(),
+            );
+          },
         ),
       ),
     );

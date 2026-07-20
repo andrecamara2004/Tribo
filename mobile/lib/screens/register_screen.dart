@@ -1,6 +1,8 @@
 // lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 
+import 'package:flutter/services.dart';
+
 import '../api/auth.dart';
 import '../api/http.dart';
 import '../auth/auth_scope.dart';
@@ -212,6 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [PortuguesePhoneFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Phone (+351…)',
                     border: OutlineInputBorder(),
@@ -274,6 +277,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class PortuguesePhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    String raw = newValue.text.replaceAll(RegExp(r'[^\d+]'), '');
+
+    if (raw.startsWith('+351')) {
+      String rest = raw.substring(4);
+      if (rest.length > 9) rest = rest.substring(0, 9);
+      String formatted = '+351';
+      for (int i = 0; i < rest.length; i++) {
+        if (i % 3 == 0) formatted += ' ';
+        formatted += rest[i];
+      }
+      return TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    } else if (raw.startsWith('+')) {
+      return TextEditingValue(
+        text: raw,
+        selection: TextSelection.collapsed(offset: raw.length),
+      );
+    }
+
+    // Format as groups of 3 digits
+    String digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 9) digits = digits.substring(0, 9);
+    String formatted = '';
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && i % 3 == 0) formatted += ' ';
+      formatted += digits[i];
+    }
+    
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

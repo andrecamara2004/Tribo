@@ -60,6 +60,7 @@ public class UserRepository {
                 .set("suspended", user.suspended())
                 .set("verified", user.verified())
                 .set("emailVerified", user.emailVerified())
+                .set("themePreference", user.themePreference().name())
                 .set("weeklyGoalKm", user.weeklyGoalKm());
 
         if (user.pictureUrl() != null) {
@@ -136,7 +137,10 @@ public class UserRepository {
                 e.contains("pictureUrl") ? e.getString("pictureUrl") : null,
                 // Legacy entities (created before email verification) default to
                 // emailVerified=true so existing accounts aren't locked out.
-                !e.contains("emailVerified") || e.getBoolean("emailVerified"));
+                !e.contains("emailVerified") || e.getBoolean("emailVerified"),
+                // Legacy entities default to LIGHT mode
+                e.contains("themePreference") ? User.ThemePreference.valueOf(e.getString("themePreference"))
+                        : User.ThemePreference.LIGHT);
     }
 
     /**
@@ -179,7 +183,8 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
+                u.suspended(), true, u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified(),
+                u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -199,7 +204,8 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
+                u.suspended(), u.verified(), clanId, u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified(),
+                u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -214,7 +220,7 @@ public class UserRepository {
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), Math.max(0, km), u.pictureUrl(),
-                u.emailVerified());
+                u.emailVerified(), u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -230,7 +236,8 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
-                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), true);
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), true,
+                u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -245,7 +252,7 @@ public class UserRepository {
                 u.id(), u.email(), newHash, u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
-                u.emailVerified());
+                u.emailVerified(), u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -262,7 +269,7 @@ public class UserRepository {
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), visibility, u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
-                u.emailVerified());
+                u.emailVerified(), u.themePreference());
         save(updated);
         return Optional.of(updated);
     }
@@ -311,7 +318,8 @@ public class UserRepository {
         User updated = new User(
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
-                suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified());
+                suspended, u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(), u.emailVerified(),
+                u.themePreference());
         save(updated);
         return Optional.of(updated);
     }

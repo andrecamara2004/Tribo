@@ -19,6 +19,7 @@ import com.tribo.api.iam.Role;
 import com.tribo.api.iam.User;
 import com.tribo.api.iam.UserRepository;
 import com.tribo.api.iam.VerificationTokenRepository;
+import com.tribo.api.iam.PasswordResetTokenRepository;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -61,6 +62,7 @@ public class AuthResource {
     private static final UserRepository USERS = new UserRepository();
     private static final RevokedTokenRepository REVOKED = new RevokedTokenRepository();
     private static final PasswordPolicyRepository PASSWORD_POLICY = new PasswordPolicyRepository();
+    private static final PasswordResetTokenRepository PASSWORD_RESET_TOKENS = new PasswordResetTokenRepository();
     private static final VerificationTokenRepository VERIFICATION = new VerificationTokenRepository();
     private static final JwtIssuer JWT = new JwtIssuer();
 
@@ -170,7 +172,8 @@ public class AuthResource {
                 null, // new users start without a clan
                 0.0, // no weekly goal yet
                 null, // no profile picture yet
-                emailVerified);
+                emailVerified,
+                User.ThemePreference.LIGHT);
         USERS.save(user);
 
         // Send the confirmation email (best-effort) unless already verified.
@@ -427,6 +430,62 @@ public class AuthResource {
     /** Body for POST /auth/resend-verification. */
     public static class ResendRequest {
         public String email;
+    }
+
+    public static class ResetPasswordRequestDto {
+        public String email;
+    }
+
+    public static class ResetPasswordSubmitDto {
+        public String token;
+        public String newPassword;
+    }
+
+    @POST
+    @Path("/reset-password-request")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response resetPasswordRequest(ResetPasswordRequestDto req) {
+        String ip = clientIp(httpRequest);
+        if (LoginRateLimiter.isRateLimited(ip)) {
+            throw new TooManyRequestsException("Too many requests. Please wait a minute and try again.");
+        }
+        if (req != null && req.email != null && !req.email.isBlank()) {
+            String email = req.email.trim().toLowerCase();
+            USERS.findByEmail(email).ifPresent(u -> {
+                PASSWORD_RESET_TOKENS.deleteByUser(u.id());
+                String token = PASSWORD_RESET_TOKENS.create(u.id(), Instant.now().plus(24, ChronoUnit.HOURS));
+                EmailSender.sendPasswordResetEmail(u.email(), token);
+            });
+        }
+        // Generic response — never reveal whether an account exists.
+        return Response.ok(Map.of(
+                "message", "A password reset link has been sent."))
+                .build();
+    }
+
+    @POST
+    @Path("/reset-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response resetPassword(ResetPasswordSubmitDto req) {
+        if (req == null || req.token == null || req.token.isBlank() || req.newPassword == null
+                || req.newPassword.isBlank()) {
+            throw new ValidationException("Token and new password are required.");
+        }
+
+        PASSWORD_POLICY.get().validate(req.newPassword);
+
+        String userId = PASSWORD_RESET_TOKENS.resolveUserId(req.token)
+                .orElseThrow(() -> new UnauthorizedException("Invalid or expired password reset token."));
+
+        PASSWORD_RESET_TOKENS.delete(req.token);
+
+        String newHash = PasswordHasher.hash(req.newPassword);
+        USERS.updatePasswordHash(userId, newHash)
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
+
+        return Response.ok(Map.of("message", "Password successfully updated.")).build();
     }
 
     /**

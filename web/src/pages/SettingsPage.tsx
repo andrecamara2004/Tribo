@@ -8,7 +8,7 @@ import { Icon } from "../components/Icon";
 import { Spinner } from "../components/Spinner";
 import { ApiError } from "../api/http";
 import { getPasswordPolicy, type PasswordPolicy } from "../api/auth";
-import { changePassword, setVisibility } from "../api/users";
+import { changePassword, setVisibility, setTheme } from "../api/users";
 
 export function SettingsPage() {
   const { profile, refreshProfile } = useAuth();
@@ -29,6 +29,10 @@ export function SettingsPage() {
 
       <div className="settings-grid">
         <PasswordSection policy={policy} />
+        <AppearanceSection
+          theme={profile?.themePreference === "DARK" ? "DARK" : "LIGHT"}
+          onChanged={refreshProfile}
+        />
         <PrivacySection
           visibility={profile?.profileVisibility === "PRIVATE" ? "PRIVATE" : "PUBLIC"}
           onChanged={refreshProfile}
@@ -144,6 +148,52 @@ function PrivacySection({
         <button className={"btn " + (isPrivate ? "btn-secondary" : "btn-primary")} onClick={toggle} disabled={busy}>
           {busy ? <Spinner size={14} /> : isPrivate ? "Make public" : "Make private"}
         </button>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+    </section>
+  );
+}
+
+function AppearanceSection({ theme, onChanged }: { theme: "LIGHT" | "DARK", onChanged: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isDark = theme === "DARK";
+
+  async function toggle() {
+    setBusy(true);
+    setError(null);
+    try {
+      const newTheme = isDark ? "LIGHT" : "DARK";
+      await setTheme(newTheme);
+      // Update DOM instantly so the user doesn't wait for the profile refresh
+      localStorage.setItem("theme", newTheme);
+      if (newTheme === "DARK") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't update theme.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card settings-card">
+      <h2><Icon name="moon" size={18} /> Appearance</h2>
+
+      <div className="settings-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
+        <strong>{isDark ? "Dark mode" : "Light mode"}</strong>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label className="switch">
+            <input type="checkbox" checked={isDark} onChange={toggle} disabled={busy} />
+            <span className="slider"></span>
+          </label>
+        </div>
       </div>
 
       {error && <p className="form-error">{error}</p>}

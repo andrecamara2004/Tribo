@@ -91,6 +91,7 @@ export interface Roster {
 /* -------------------------------------------------------------------------- */
 
 export interface Review {
+  userName: string;
   id: string;
   activityId: string;
   userId: string;
