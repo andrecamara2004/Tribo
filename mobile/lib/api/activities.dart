@@ -22,6 +22,7 @@ class Activity {
   final double distanceKm;
   final double averageRating;
   final int reviewCount;
+  final String? userRole; // caller's participation: PARTICIPANT | STAFF | null
   final double? latitude; // optional location pin for the map
   final double? longitude;
 
@@ -40,6 +41,7 @@ class Activity {
     this.distanceKm = 0,
     this.averageRating = 0,
     this.reviewCount = 0,
+    this.userRole,
     this.latitude,
     this.longitude,
   });
@@ -61,9 +63,46 @@ class Activity {
         distanceKm: (j['distanceKm'] as num?)?.toDouble() ?? 0,
         averageRating: (j['averageRating'] as num?)?.toDouble() ?? 0,
         reviewCount: (j['reviewCount'] as num?)?.toInt() ?? 0,
+        userRole: j['userRole'] as String?,
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
       );
+}
+
+/// A single review left on an activity (GET/POST /activities/{id}/reviews).
+class Review {
+  final String id;
+  final String activityId;
+  final String userId;
+  final int rating; // 1–5
+  final String comment;
+  final DateTime createdAt;
+
+  const Review({
+    required this.id,
+    required this.activityId,
+    required this.userId,
+    required this.rating,
+    required this.comment,
+    required this.createdAt,
+  });
+
+  factory Review.fromJson(Map<String, dynamic> j) => Review(
+        id: (j['id'] ?? '') as String,
+        activityId: (j['activityId'] ?? '') as String,
+        userId: (j['userId'] ?? '') as String,
+        rating: (j['rating'] as num?)?.toInt() ?? 0,
+        comment: (j['comment'] ?? '') as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+      );
+}
+
+/// The reviews list for an activity plus its aggregate rating.
+class ReviewList {
+  final double averageRating;
+  final int reviewCount;
+  final List<Review> reviews;
+  const ReviewList(this.averageRating, this.reviewCount, this.reviews);
 }
 
 /// Body for create + edit. Server ignores any id/owner/status sent.
@@ -200,5 +239,28 @@ class ActivitiesApi {
             ))
         .toList();
     return Roster((data['count'] as num).toInt(), participants);
+  }
+
+  /// GET /activities/{id}/reviews — list of reviews + aggregate rating.
+  Future<ReviewList> getReviews(String id) async {
+    final data = await _client.get('/activities/$id/reviews') as Map<String, dynamic>?;
+    if (data == null) return const ReviewList(0, 0, []);
+    final reviews = ((data['reviews'] as List<dynamic>?) ?? const [])
+        .map((e) => Review.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ReviewList(
+      (data['averageRating'] as num?)?.toDouble() ?? 0,
+      (data['reviewCount'] as num?)?.toInt() ?? 0,
+      reviews,
+    );
+  }
+
+  /// POST /activities/{id}/reviews — leave a review (participants only, after
+  /// the activity has ended). Returns the created review.
+  Future<Review> submitReview(String id, {required int rating, String comment = ''}) async {
+    final data = await _client.post('/activities/$id/reviews',
+        body: {'rating': rating, 'comment': comment}) as Map<String, dynamic>?;
+    if (data == null) throw Exception('Review submission failed.');
+    return Review.fromJson(data);
   }
 }
