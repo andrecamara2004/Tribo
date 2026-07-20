@@ -149,6 +149,11 @@ public class AuthResource {
             role = Role.BACKOFFICE;
             verified = true;
             emailVerified = true;
+        } else if (bootstrapVerifiedEmails().contains(email)) {
+            // Seed test accounts ready-to-use: keep the requested role
+            // (END_USER / ACTIVITY_MANAGER / PARTNER) but skip both gates.
+            verified = true;
+            emailVerified = true;
         } else {
             // END_USER is usable immediately (once email-verified); privileged
             // roles also await backoffice verification before they can act.
@@ -225,12 +230,23 @@ public class AuthResource {
         return role;
     }
 
-    /**
-     * Lowercased emails seeded as BACKOFFICE, from the comma-separated
-     * BOOTSTRAP_BACKOFFICE_EMAILS env var (empty when unset).
-     */
+    /** Lowercased emails seeded as BACKOFFICE (BOOTSTRAP_BACKOFFICE_EMAILS). */
     private static java.util.Set<String> bootstrapBackofficeEmails() {
-        String raw = System.getenv("BOOTSTRAP_BACKOFFICE_EMAILS");
+        return emailSetFromEnv("BOOTSTRAP_BACKOFFICE_EMAILS");
+    }
+
+    /**
+     * Lowercased emails seeded ready-to-use with their requested role
+     * (verified + email-verified), from BOOTSTRAP_VERIFIED_EMAILS. For test
+     * accounts on dummy addresses that can't click a confirmation link.
+     */
+    private static java.util.Set<String> bootstrapVerifiedEmails() {
+        return emailSetFromEnv("BOOTSTRAP_VERIFIED_EMAILS");
+    }
+
+    /** Parses a comma-separated env var into a lowercased email set (empty if unset). */
+    private static java.util.Set<String> emailSetFromEnv(String envName) {
+        String raw = System.getenv(envName);
         if (raw == null || raw.isBlank()) {
             return java.util.Set.of();
         }

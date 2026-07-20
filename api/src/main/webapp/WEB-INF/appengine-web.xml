@@ -28,6 +28,10 @@
              registration (they skip the email-confirmation gate). Not secret. -->
         <env-var name="BOOTSTRAP_BACKOFFICE_EMAILS"
                  value="boffice1@innertribe.com,boffice2@innertribe.com,boffice3@innertribe.com"/>
+        <!-- Seed test accounts (keep their requested END_USER/ACTIVITY_MANAGER/
+             PARTNER role) as ready-to-use: verified + email-verified. Not secret. -->
+        <env-var name="BOOTSTRAP_VERIFIED_EMAILS"
+                 value="normaluser1@gmail.com,normaluser2@gmail.com,normaluser3@gmail.com,activitymanager1@gmail.com,activitymanager2@gmail.com,partner1@gmail.com,partner2@gmail.com"/>
     </env-variables>
 
     <!-- B4-8: cap to 2 instances to silence the deploy warning and bound cost
