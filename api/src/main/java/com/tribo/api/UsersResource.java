@@ -108,7 +108,7 @@ public class UsersResource {
                 u.verified(), u.profileVisibility().name(), u.createdAt().toString(),
                 handleFor(u.email()), AvatarColor.forId(u.id()), u.pictureUrl(), clan,
                 vol.events(), vol.staffEligible(), vol.points(), u.weeklyGoalKm(),
-                achievementsFor(stats, vol));
+                achievementsFor(stats, vol), u.themePreference().name());
         return Response.ok(body).build();
     }
 
@@ -146,7 +146,7 @@ public class UsersResource {
                 u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
                 u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
                 u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), pictureUrl,
-                u.emailVerified());
+                u.emailVerified(), u.themePreference());
         USERS.save(updated);
 
         return me(ctx);
@@ -196,7 +196,39 @@ public class UsersResource {
         return Response.ok(Map.of("message", "Password updated.")).build();
     }
 
-    // Set profile visibility (PUBLIC / PRIVATE)
+    // Change theme preference
+
+    @PUT
+    @Path("/me/theme")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response updateTheme(@Context ContainerRequestContext ctx, ThemeRequest req) {
+        AuthenticatedUser caller = authUser(ctx);
+        User u = USERS.findById(caller.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists."));
+
+        if (req == null || req.theme == null) {
+            throw new ValidationException("Theme is required.");
+        }
+
+        User.ThemePreference pref;
+        try {
+            pref = User.ThemePreference.valueOf(req.theme.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Invalid theme.");
+        }
+
+        User updated = new User(
+                u.id(), u.email(), u.passwordHash(), u.fullName(), u.phoneNumber(),
+                u.birthDate(), u.role(), u.profileVisibility(), u.createdAt(),
+                u.suspended(), u.verified(), u.clanId(), u.weeklyGoalKm(), u.pictureUrl(),
+                u.emailVerified(), pref);
+        USERS.save(updated);
+
+        return me(ctx);
+    }
+
+    // Change profile visibility
 
     @PUT
     @Path("/me/visibility")
@@ -335,12 +367,17 @@ public class UsersResource {
         public String visibility;
     }
 
+    /** Body for PUT /users/me/theme. */
+    public static class ThemeRequest {
+        public String theme;
+    }
+
     /** Profile response - hides passwordHash and other secrets. */
     public record MeResponse(
             String userId, String email, String fullName, int age, String birthDate, String role,
             boolean verified, String profileVisibility, String createdAt,
             String handle, String avatarColor, String pictureUrl, ClanRef clan,
             int volunteerEvents, boolean staffEligible, long volunteerPoints,
-            double weeklyGoalKm, List<Achievement> achievements) {
+            double weeklyGoalKm, List<Achievement> achievements, String themePreference) {
     }
 }

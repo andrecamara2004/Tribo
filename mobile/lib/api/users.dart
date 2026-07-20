@@ -57,6 +57,7 @@ class Me {
   final String role;
   final bool verified;
   final String profileVisibility; // PUBLIC | PRIVATE
+  final String themePreference; // LIGHT | DARK
   final String handle; // derived, e.g. "@ana"
   final String avatarColor; // derived hex
   final String? pictureUrl;
@@ -76,6 +77,7 @@ class Me {
     required this.role,
     required this.verified,
     this.profileVisibility = 'PUBLIC',
+    this.themePreference = 'LIGHT',
     required this.handle,
     required this.avatarColor,
     this.pictureUrl,
@@ -96,6 +98,7 @@ class Me {
         role: (j['role'] ?? '') as String,
         verified: (j['verified'] ?? false) as bool,
         profileVisibility: (j['profileVisibility'] ?? 'PUBLIC') as String,
+        themePreference: (j['themePreference'] ?? 'LIGHT') as String,
         handle: (j['handle'] ?? '') as String,
         avatarColor: (j['avatarColor'] ?? '#1B8A5A') as String,
         pictureUrl: j['pictureUrl'] as String?,
@@ -148,6 +151,14 @@ class UsersApi {
     final data = await _client.request('PUT', '/users/me/visibility', body: {'visibility': visibility})
         as Map<String, dynamic>?;
     if (data == null) throw Exception('Set visibility returned no body.');
+    return Me.fromJson(data);
+  }
+
+  /// PUT /users/me/theme — set UI theme preference (LIGHT / DARK).
+  Future<Me> setTheme(String theme) async {
+    final data = await _client.request('PUT', '/users/me/theme', body: {'theme': theme})
+        as Map<String, dynamic>?;
+    if (data == null) throw Exception('Set theme returned no body.');
     return Me.fromJson(data);
   }
 }

@@ -119,3 +119,23 @@ export async function whoami(): Promise<CurrentUser> {
   if (!user) throw new Error("whoami returned no body.");
   return user;
 }
+
+/** POST /auth/reset-password-request — Request a password reset link. */
+export async function requestPasswordReset(email: string): Promise<string> {
+  const res = await apiFetch<{ message: string }>("/auth/reset-password-request", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  });
+  return res?.message ?? "A password reset link has been sent.";
+}
+
+/** POST /auth/reset-password — Consume token and set new password. */
+export async function resetPassword(token: string, newPassword: string): Promise<string> {
+  const res = await apiFetch<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ token, newPassword }),
+  });
+  return res?.message ?? "Password successfully updated.";
+}

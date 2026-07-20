@@ -18,13 +18,14 @@ import java.util.logging.Logger;
  * "tribo-smtp-pass"), falling back to SMTP_USER / SMTP_PASS env vars for local
  * dev — so no credentials live in the repo. Non-secret knobs are env vars:
  *
- *   SMTP_HOST     (default smtp.gmail.com)
- *   SMTP_PORT     (default 587, STARTTLS)
- *   MAIL_FROM     From address (default: the SMTP user)
- *   WEB_BASE_URL  base for the verify link (default: the deployed web service)
+ * SMTP_HOST (default smtp.gmail.com)
+ * SMTP_PORT (default 587, STARTTLS)
+ * MAIL_FROM From address (default: the SMTP user)
+ * WEB_BASE_URL base for the verify link (default: the deployed web service)
  *
  * If the user/password can't be resolved (e.g. local dev without config), it
- * logs the verification link instead of sending — so the flow is still testable.
+ * logs the verification link instead of sending — so the flow is still
+ * testable.
  */
 public class EmailSender {
 
@@ -64,8 +65,15 @@ public class EmailSender {
                 + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
-    /** Best-effort send. Never throws — a failure is logged, not propagated, so
-     *  registration doesn't half-fail; the user can use "resend". */
+    public static String passwordResetLink(String token) {
+        return WEB_BASE_URL + "/reset-password?token="
+                + URLEncoder.encode(token, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Best-effort send. Never throws — a failure is logged, not propagated, so
+     * registration doesn't half-fail; the user can use "resend".
+     */
     public static void sendVerificationEmail(String toEmail, String token) {
         String link = verificationLink(token);
 
@@ -114,6 +122,49 @@ public class EmailSender {
         }
     }
 
+    public static void sendPasswordResetEmail(String toEmail, String token) {
+        String link = passwordResetLink(token);
+
+        if (!configured()) {
+            LOG.warning("SMTP not configured (set SMTP_USER/SMTP_PASS). "
+                    + "Password reset link for " + toEmail + ": " + link);
+            return;
+        }
+
+        final String user = smtpUser();
+        final String pass = smtpPass();
+        final String from = envOr("MAIL_FROM", user);
+
+        final ClassLoader prev = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(EmailSender.class.getClassLoader());
+        try {
+            Properties props = new Properties();
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.host", HOST);
+            props.put("mail.smtp.port", PORT);
+
+            Session session = Session.getInstance(props);
+
+            MimeMessage msg = new MimeMessage(session);
+            msg.setFrom(new InternetAddress(from, "Tribo"));
+            msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
+            msg.setSubject("Reset your Tribo password");
+            msg.setContent(resetBody(link), "text/html; charset=utf-8");
+
+            try (Transport transport = session.getTransport("smtp")) {
+                transport.connect(HOST, Integer.parseInt(PORT), user, pass);
+                transport.sendMessage(msg, msg.getAllRecipients());
+            }
+            LOG.info("Password reset email sent to " + toEmail);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Failed to send password reset email to " + toEmail, e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prev);
+        }
+    }
+
     private static String body(String link) {
         return "<div style=\"font-family:sans-serif;max-width:480px;margin:auto\">"
                 + "<h2>Welcome to Tribo 🏃</h2>"
@@ -126,6 +177,20 @@ public class EmailSender {
                 + link + "</p>"
                 + "<p style=\"color:#999;font-size:12px\">If you didn't create a Tribo account, "
                 + "you can ignore this email.</p></div>";
+    }
+
+    private static String resetBody(String link) {
+        return "<div style=\"font-family:sans-serif;max-width:480px;margin:auto\">"
+                + "<h2>Reset your Tribo Password 🔒</h2>"
+                + "<p>Click the button below to reset your password:</p>"
+                + "<p><a href=\"" + link + "\" "
+                + "style=\"display:inline-block;background:#00B86B;color:#fff;"
+                + "padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600\">"
+                + "Reset Password</a></p>"
+                + "<p style=\"color:#666;font-size:13px\">Or paste this link into your browser:<br>"
+                + link + "</p>"
+                + "<p style=\"color:#999;font-size:12px\">If you didn't request a password reset, "
+                + "you can safely ignore this email.</p></div>";
     }
 
     private static String envOr(String name, String fallback) {

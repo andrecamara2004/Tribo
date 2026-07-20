@@ -36,6 +36,7 @@ class SessionTokens {
 class TokenStore {
   static const _accessKey = 'tribo.accessToken';
   static const _refreshKey = 'tribo.refreshToken';
+  static const _themeKey = 'tribo.themePreference';
 
   // Android: force the encrypted-prefs backend so tokens survive across
   // process death and OS upgrades without throwing on some devices.
@@ -78,6 +79,18 @@ class TokenStore {
       await _storage.delete(key: _refreshKey);
     } else {
       await _storage.write(key: _refreshKey, value: token);
+    }
+  }
+
+  // --- theme preference -----------------------------------------------------
+
+  Future<String?> getThemePreference() => _readSafe(_themeKey);
+
+  Future<void> setThemePreference(String? theme) async {
+    if (theme == null) {
+      await _storage.delete(key: _themeKey);
+    } else {
+      await _storage.write(key: _themeKey, value: theme);
     }
   }
 

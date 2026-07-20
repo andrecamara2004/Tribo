@@ -1,5 +1,8 @@
 package com.tribo.api.activity;
 
+import com.tribo.api.iam.User;
+import com.tribo.api.iam.UserRepository;
+
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
@@ -23,11 +26,13 @@ public class ReviewRepository {
 
     private static final KeyFactory KEY_FACTORY = DATASTORE.newKeyFactory().setKind(KIND);
 
+    private static final UserRepository USERS = new UserRepository();
+
     private static String keyOf(String activityId, String userId) {
         return activityId + "::" + userId;
     }
 
-    public void save(Review review) {
+    public void save(ReviewView review) {
 
         Key key = KEY_FACTORY.newKey(keyOf(review.activityId(), review.userId()));
 
@@ -42,7 +47,7 @@ public class ReviewRepository {
         DATASTORE.put(entity);
     }
 
-    public Optional<Review> find(String activityId, String userId) {
+    public Optional<ReviewView> find(String activityId, String userId) {
 
         Entity entity = DATASTORE.get(
                 KEY_FACTORY.newKey(keyOf(activityId, userId)));
@@ -57,7 +62,7 @@ public class ReviewRepository {
                 KEY_FACTORY.newKey(keyOf(activityId, userId)));
     }
 
-    public List<Review> listByActivity(String activityId) {
+    public List<ReviewView> listByActivity(String activityId) {
 
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND)
@@ -66,14 +71,14 @@ public class ReviewRepository {
 
         QueryResults<Entity> results = DATASTORE.run(query);
 
-        List<Review> reviews = new ArrayList<>();
+        List<ReviewView> reviews = new ArrayList<>();
 
         while (results.hasNext()) {
             reviews.add(toReview(results.next()));
         }
 
         reviews.sort(
-                Comparator.comparing(Review::createdAt).reversed());
+                Comparator.comparing(ReviewView::createdAt).reversed());
 
         return reviews;
     }
@@ -99,7 +104,7 @@ public class ReviewRepository {
 
     public double averageRating(String activityId) {
 
-        List<Review> reviews = listByActivity(activityId);
+        List<ReviewView> reviews = listByActivity(activityId);
 
         if (reviews.isEmpty()) {
             return 0.0;
@@ -107,19 +112,29 @@ public class ReviewRepository {
 
         double sum = 0;
 
-        for (Review review : reviews) {
+        for (ReviewView review : reviews) {
             sum += review.rating();
         }
 
         return sum / reviews.size();
     }
 
-    private Review toReview(Entity entity) {
+    private ReviewView toReview(Entity entity) {
 
-        return new Review(
+        String userId = entity.getString("userId");
+
+        User user = USERS.findById(userId)
+                .orElse(null);
+
+        String userName = user != null
+                ? user.displayName()
+                : "Unknown user";
+
+        return new ReviewView(
                 entity.getKey().getName(),
                 entity.getString("activityId"),
-                entity.getString("userId"),
+                userId,
+                userName,
                 (int) entity.getLong("rating"),
                 entity.getString("comment"),
                 Instant.parse(entity.getString("createdAt")));

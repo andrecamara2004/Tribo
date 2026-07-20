@@ -4,6 +4,8 @@ import com.tribo.api.error.ForbiddenException;
 import com.tribo.api.error.NotFoundException;
 import com.tribo.api.error.ValidationException;
 import com.tribo.api.iam.AuthenticatedUser;
+import com.tribo.api.iam.User;
+import com.tribo.api.iam.UserRepository;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -18,6 +20,7 @@ import jakarta.ws.rs.core.Response;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 
 @Path("/activities/{id}/reviews")
 public class ReviewResource {
@@ -25,6 +28,7 @@ public class ReviewResource {
         private static final ReviewRepository REVIEWS = new ReviewRepository();
         private static final ActivityRepository ACTIVITIES = new ActivityRepository();
         private static final ParticipationRepository PARTICIPANTS = new ParticipationRepository();
+        private static final UserRepository USERS = new UserRepository();
 
         @GET
         @Produces(MediaType.APPLICATION_JSON)
@@ -37,11 +41,32 @@ public class ReviewResource {
                 Activity activity = ACTIVITIES.findById(activityId)
                                 .orElseThrow(() -> new NotFoundException("No activity with id " + activityId + "."));
 
+                List<ReviewView> reviews = REVIEWS.listByActivity(activityId)
+                                .stream()
+                                .map(r -> {
+                                        String userName = USERS.findById(r.userId())
+                                                        .map(User::displayName) // <-- we'll adjust this if your User
+                                                                                // record
+                                                                                // uses another field
+                                                        .orElse("Unknown user");
+
+                                        return new ReviewView(
+                                                        r.id(),
+                                                        r.activityId(),
+                                                        r.userId(),
+                                                        userName,
+                                                        r.rating(),
+                                                        r.comment(),
+                                                        r.createdAt());
+                                })
+                                .toList();
+
                 return Response.ok(Map.of(
                                 "activityId", activity.id(),
                                 "averageRating", activity.averageRating(),
                                 "reviewCount", activity.reviewCount(),
-                                "reviews", REVIEWS.listByActivity(activityId))).build();
+                                "reviews", reviews))
+                                .build();
         }
 
         // Create Review
@@ -76,10 +101,13 @@ public class ReviewResource {
 
                 String comment = req.comment == null ? "" : req.comment.trim();
 
-                Review review = new Review(
+                ReviewView review = new ReviewView(
                                 activityId + "::" + caller.userId(),
                                 activityId,
                                 caller.userId(),
+                                USERS.findById(caller.userId())
+                                                .map(User::displayName)
+                                                .orElse("Unknown user"),
                                 req.rating,
                                 comment,
                                 Instant.now());
