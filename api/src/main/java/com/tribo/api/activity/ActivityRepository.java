@@ -133,8 +133,10 @@ public class ActivityRepository {
      * #listByRating} already makes.
      *
      * Paging is offset-based: {@code cursor} is the integer offset of the next
-     * page (as a string), or null at the end. Results are ordered by soonest
-     * start time so paging is deterministic.
+     * page (as a string), or null at the end. Results put still-joinable
+     * activities before already-ended ones (endsAt in the past); within each
+     * group they're ordered nearest-first when a point is given, otherwise by
+     * soonest start time, so paging stays deterministic.
      *
      * @param status        if non-null, only activities in this status
      * @param q             case-insensitive substring matched against title,
@@ -183,12 +185,17 @@ public class ActivityRepository {
             }
             matched.add(a);
         }
-        // Nearest-first when a point is given; otherwise soonest-starting first.
+        // Still-joinable activities first, already-ended ones pushed to the end.
+        // Within each group: nearest-first when a point is given, otherwise
+        // soonest-starting first.
+        final Instant now = Instant.now();
+        Comparator<Activity> byActive =
+                Comparator.comparing((Activity a) -> a.endsAt().isBefore(now));
         if (near) {
-            matched.sort(Comparator.comparingDouble(
+            matched.sort(byActive.thenComparingDouble(
                     a -> haversineKm(nearLat, nearLng, a.latitude(), a.longitude())));
         } else {
-            matched.sort(Comparator.comparing(Activity::startsAt));
+            matched.sort(byActive.thenComparing(Activity::startsAt));
         }
 
         int from = Math.max(0, Math.min(offset, matched.size()));
